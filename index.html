@@ -163,6 +163,29 @@
           </div>
         </section>
 
+        <!-- Export Card -->
+        <section class="card" id="card-export">
+          <div class="card-header">
+            <div class="card-dot"></div>
+            <h2 class="card-title" data-i18n="export_title">导出配置</h2>
+          </div>
+          <div class="card-body">
+            <p class="export-desc" data-i18n="export_desc">将当前配置导出为各平台通用格式</p>
+            <div class="export-grid">
+              <button class="export-item" onclick="exportConfig('openai-env')"><span class="export-label">OpenAI .env</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
+              <button class="export-item" onclick="exportConfig('openclaw')"><span class="export-label">OpenClaw</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
+              <button class="export-item" onclick="exportConfig('codex')"><span class="export-label">Codex CLI</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
+              <button class="export-item" onclick="exportConfig('claude-code')"><span class="export-label">Claude Code</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
+              <button class="export-item" onclick="exportConfig('antigravity')"><span class="export-label">Antigravity</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
+              <button class="export-item" onclick="exportConfig('curl')"><span class="export-label">cURL</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
+              <button class="export-item" onclick="exportConfig('python')"><span class="export-label">Python</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
+              <button class="export-item" onclick="exportConfig('json')"><span class="export-label">JSON</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="col-right">
         <!-- Results Card -->
         <section class="card" id="card-results">
           <div class="card-header">
@@ -221,29 +244,27 @@
           </div>
         </section>
 
-        <!-- Export Card -->
-        <section class="card" id="card-export">
+        <!-- Model Probe Card -->
+        <section class="card" id="card-probe">
           <div class="card-header">
             <div class="card-dot"></div>
-            <h2 class="card-title" data-i18n="export_title">导出配置</h2>
+            <h2 class="card-title" data-i18n="probe_title">模型探测</h2>
           </div>
           <div class="card-body">
-            <p class="export-desc" data-i18n="export_desc">将当前配置导出为各平台通用格式</p>
-            <div class="export-grid">
-              <button class="export-item" onclick="exportConfig('openai-env')"><span class="export-label">OpenAI .env</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
-              <button class="export-item" onclick="exportConfig('openclaw')"><span class="export-label">OpenClaw</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
-              <button class="export-item" onclick="exportConfig('codex')"><span class="export-label">Codex CLI</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
-              <button class="export-item" onclick="exportConfig('claude-code')"><span class="export-label">Claude Code</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
-              <button class="export-item" onclick="exportConfig('antigravity')"><span class="export-label">Antigravity</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
-              <button class="export-item" onclick="exportConfig('curl')"><span class="export-label">cURL</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
-              <button class="export-item" onclick="exportConfig('python')"><span class="export-label">Python</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
-              <button class="export-item" onclick="exportConfig('json')"><span class="export-label">JSON</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
+            <div class="probe-search">
+              <select id="probe-select" class="field-input" onchange="onProbeSelect()">
+                <option value="" data-i18n="probe_placeholder">选择要探测的模型…</option>
+              </select>
+              <button class="btn btn-primary btn-sm" onclick="runProbeAll()" id="btn-probe-all" disabled>
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7h12M9 3l4 4-4 4"/></svg>
+                <span data-i18n="probe_all">全部探测</span>
+              </button>
             </div>
+            <div class="probe-hint" data-i18n="probe_hint">选择一个模型，查看哪些已保存服务商支持该模型并测试连通性</div>
+            <div id="probe-results"></div>
           </div>
         </section>
-      </div>
 
-      <div class="col-right">
         <!-- Saved Configs Card -->
         <section class="card" id="card-saved">
           <div class="card-header">
@@ -272,27 +293,6 @@
                 <p data-i18n="empty_saved">暂无保存的配置</p>
               </div>
             </div>
-          </div>
-        </section>
-
-        <!-- Model Probe Card -->
-        <section class="card" id="card-probe">
-          <div class="card-header">
-            <div class="card-dot"></div>
-            <h2 class="card-title" data-i18n="probe_title">模型探测</h2>
-          </div>
-          <div class="card-body">
-            <div class="probe-search">
-              <select id="probe-select" class="field-input" onchange="onProbeSelect()">
-                <option value="" data-i18n="probe_placeholder">选择要探测的模型…</option>
-              </select>
-              <button class="btn btn-primary btn-sm" onclick="runProbeAll()" id="btn-probe-all" disabled>
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7h12M9 3l4 4-4 4"/></svg>
-                <span data-i18n="probe_all">全部探测</span>
-              </button>
-            </div>
-            <div class="probe-hint" data-i18n="probe_hint">选择一个模型，查看哪些已保存服务商支持该模型并测试连通性</div>
-            <div id="probe-results"></div>
           </div>
         </section>
       </div>
