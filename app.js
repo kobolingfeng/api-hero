@@ -246,7 +246,7 @@ function setupListeners() {
     if (e.target === e.currentTarget) closeTestAllModal();
   });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeModal(); closeTestAllModal(); cancelPromptModal(); cancelConfirmModal(); }
+    if (e.key === 'Escape') { closeModal(); closeTestAllModal(); cancelPromptModal(); cancelConfirmModal(); closeProviderExportModal(); }
     if (e.key === 'Enter' && !document.getElementById('prompt-modal').classList.contains('hidden')) { confirmPromptModal(); }
   });
   document.addEventListener('click', e => {
@@ -513,6 +513,9 @@ async function renderProviders() {
           <div class="provider-actions" onclick="event.stopPropagation()">
             <button class="btn-icon btn-icon-sm" onclick="refreshProviderModels(${p.id})" title="${t('provider_refresh')}">
               <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8a6 6 0 0111.5-2.3"/><path d="M14 8a6 6 0 01-11.5 2.3"/><path d="M13 2v4h-4"/><path d="M3 14v-4h4"/></svg>
+            </button>
+            <button class="btn-icon btn-icon-sm" onclick="exportProvider(${p.id})" title="Export">
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M6 1v7M3 5l3 3 3-3"/><path d="M1 9v2h10V9"/></svg>
             </button>
             <button class="btn-icon btn-icon-sm" onclick="renameProvider(${p.id})" title="Rename">
               <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M7.5 2.5l2 2M2 8l5-5 2 2-5 5H2V8z"/></svg>
@@ -1020,25 +1023,117 @@ async function parseAndAutoSave(text, fname) {
 // ══════════════════════════════════
 //  EXPORT
 // ══════════════════════════════════
+
+// Reusable format generator
+function generateFormatContent(format, cfg) {
+  const base = (cfg.baseUrl || '').replace(/\/+$/, '');
+  const apiKey = cfg.apiKey || '';
+  const model = cfg.model || (cfg.models && cfg.models[0]) || '';
+  const prompt = cfg.prompt || 'Hello!';
+  const name = cfg.name || extractHost(base);
+  switch (format) {
+    case 'openai-env': return { title: 'OpenAI .env', filename: '.env', content: `OPENAI_API_KEY="${apiKey}"\nOPENAI_BASE_URL="${base}"\nOPENAI_MODEL="${model}"` };
+    case 'openclaw': return { title: 'OpenClaw', filename: 'openclaw_config.json', content: JSON.stringify({ provider: 'openai-compatible', api_key: apiKey, base_url: base, model, max_tokens: 4096 }, null, 2) };
+    case 'codex': return { title: 'Codex CLI', filename: 'codex_config.toml', content: `[model]\nname = "${model}"\n\n[provider]\ntype = "openai"\napi_key = "${apiKey}"\nbase_url = "${base}"` };
+    case 'claude-code': return { title: 'Claude Code', filename: 'claude_code.env', content: `OPENAI_API_KEY="${apiKey}"\nOPENAI_BASE_URL="${base}"\n\n# claude config set --global model "${model}"\n# claude config set --global provider "openai"` };
+    case 'antigravity': return { title: 'Antigravity', filename: 'antigravity_config.json', content: JSON.stringify({ provider: 'openai-compatible', api_key: apiKey, base_url: base, model, settings: { temperature: 0.7, max_tokens: 4096 } }, null, 2) };
+    case 'curl': return { title: 'cURL', filename: 'test_api.sh', content: `curl "${base}/chat/completions" \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: Bearer ${apiKey}" \\\n  -d '{\n    "model": "${model}",\n    "messages": [{"role":"user","content":"${prompt.replace(/"/g, '\\"')}"}],\n    "max_tokens": 256\n  }'` };
+    case 'python': return { title: 'Python', filename: 'test_api.py', content: `from openai import OpenAI\n\nclient = OpenAI(\n    api_key="${apiKey}",\n    base_url="${base}"\n)\n\nres = client.chat.completions.create(\n    model="${model}",\n    messages=[{"role":"user","content":"${prompt.replace(/"/g, '\\"')}"}],\n    max_tokens=256\n)\nprint(res.choices[0].message.content)` };
+    case 'json': return { title: 'JSON', filename: `${name.replace(/[^a-zA-Z0-9\u4e00-\u9fff_-]/g,'_')}_config.json`, content: JSON.stringify({ name, base_url: base, api_key: apiKey, model, models: cfg.models || [model], created_at: new Date().toISOString() }, null, 2) };
+    case 'provider-full': return { title: name, filename: `${name.replace(/[^a-zA-Z0-9\u4e00-\u9fff_-]/g,'_')}.json`, content: JSON.stringify({ name, base_url: base, api_key: apiKey, models: cfg.models || [], created_at: cfg.ts || new Date().toISOString() }, null, 2) };
+    default: return { title: '', filename: '', content: '' };
+  }
+}
+
+const EXPORT_FORMATS = [
+  { id: 'provider-full', label: 'Full JSON' },
+  { id: 'openai-env', label: 'OpenAI .env' },
+  { id: 'codex', label: 'Codex CLI' },
+  { id: 'claude-code', label: 'Claude Code' },
+  { id: 'antigravity', label: 'Antigravity' },
+  { id: 'openclaw', label: 'OpenClaw' },
+  { id: 'curl', label: 'cURL' },
+  { id: 'python', label: 'Python' },
+];
+
+// Export from config form
 function exportConfig(format) {
   const c = getConfig();
   if (!c.baseUrl && !c.apiKey) { showToast(t('toast_need_config')); return; }
-  const base = c.baseUrl.replace(/\/+$/, '');
-  let content = '', filename = '', title = '';
-  switch (format) {
-    case 'openai-env': title = 'OpenAI .env'; filename = '.env'; content = `OPENAI_API_KEY="${c.apiKey}"\nOPENAI_BASE_URL="${base}"\nOPENAI_MODEL="${c.model}"`; break;
-    case 'openclaw': title = 'OpenClaw'; filename = 'openclaw_config.json'; content = JSON.stringify({ provider: 'openai-compatible', api_key: c.apiKey, base_url: base, model: c.model, max_tokens: 4096 }, null, 2); break;
-    case 'codex': title = 'Codex CLI'; filename = 'codex_config.toml'; content = `[model]\nname = "${c.model}"\n\n[provider]\ntype = "openai"\napi_key = "${c.apiKey}"\nbase_url = "${base}"`; break;
-    case 'claude-code': title = 'Claude Code'; filename = 'claude_code.env'; content = `OPENAI_API_KEY="${c.apiKey}"\nOPENAI_BASE_URL="${base}"\n\n# claude config set --global model "${c.model}"\n# claude config set --global provider "openai"`; break;
-    case 'antigravity': title = 'Antigravity'; filename = 'antigravity_config.json'; content = JSON.stringify({ provider: 'openai-compatible', api_key: c.apiKey, base_url: base, model: c.model, settings: { temperature: 0.7, max_tokens: 4096 } }, null, 2); break;
-    case 'curl': title = 'cURL'; filename = 'test_api.sh'; content = `curl "${base}/chat/completions" \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: Bearer ${c.apiKey}" \\\n  -d '{\n    "model": "${c.model}",\n    "messages": [{"role":"user","content":"${(c.prompt||'Hello!').replace(/"/g,'\\"')}"}],\n    "max_tokens": 256\n  }'`; break;
-    case 'python': title = 'Python'; filename = 'test_api.py'; content = `from openai import OpenAI\n\nclient = OpenAI(\n    api_key="${c.apiKey}",\n    base_url="${base}"\n)\n\nres = client.chat.completions.create(\n    model="${c.model}",\n    messages=[{"role":"user","content":"${(c.prompt||'Hello!').replace(/"/g,'\\"')}"}],\n    max_tokens=256\n)\nprint(res.choices[0].message.content)`; break;
-    case 'json': title = 'JSON'; filename = 'api_config.json'; content = JSON.stringify({ base_url: base, api_key: c.apiKey, model: c.model, created_at: new Date().toISOString() }, null, 2); break;
-  }
-  currentExportData = { content, filename };
-  document.getElementById('modal-title').textContent = title;
-  document.getElementById('modal-code').textContent = content;
+  const result = generateFormatContent(format, c);
+  currentExportData = { content: result.content, filename: result.filename };
+  document.getElementById('modal-title').textContent = result.title;
+  document.getElementById('modal-code').textContent = result.content;
   document.getElementById('export-modal').classList.remove('hidden');
+}
+
+// Per-provider export — show format selector
+let _exportProviderId = null;
+
+async function exportProvider(id) {
+  const providers = await getProviders();
+  const p = providers.find(x => x.id === id);
+  if (!p) return;
+  _exportProviderId = id;
+  document.getElementById('provider-export-title').textContent =
+    (currentLang === 'zh' ? '导出: ' : 'Export: ') + p.name;
+  const grid = document.getElementById('provider-export-grid');
+  grid.innerHTML = EXPORT_FORMATS.map(f => `
+    <button class="export-item" onclick="doExportProvider('${f.id}')">
+      <span class="export-name">${f.label}</span>
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg>
+    </button>
+  `).join('');
+  document.getElementById('provider-export-modal').classList.remove('hidden');
+}
+
+async function doExportProvider(format) {
+  const providers = await getProviders();
+  const p = providers.find(x => x.id === _exportProviderId);
+  if (!p) return;
+  const cfg = { baseUrl: p.baseUrl, apiKey: p._key, model: (p.models && p.models[0]) || '', models: p.models, name: p.name, ts: p.ts };
+  const result = generateFormatContent(format, cfg);
+  closeProviderExportModal();
+  currentExportData = { content: result.content, filename: result.filename };
+  document.getElementById('modal-title').textContent = result.title;
+  document.getElementById('modal-code').textContent = result.content;
+  document.getElementById('export-modal').classList.remove('hidden');
+}
+
+function closeProviderExportModal() {
+  document.getElementById('provider-export-modal').classList.add('hidden');
+}
+
+// Export ALL providers as ZIP
+async function exportAllProviders() {
+  const providers = await getProviders();
+  if (!providers.length) {
+    showToast(currentLang === 'zh' ? '没有保存的服务商' : 'No saved providers');
+    return;
+  }
+  if (typeof JSZip === 'undefined') {
+    showToast(currentLang === 'zh' ? 'JSZip 未加载，请刷新页面' : 'JSZip not loaded');
+    return;
+  }
+  showToast(currentLang === 'zh' ? '正在打包…' : 'Packing…');
+  const zip = new JSZip();
+  for (const p of providers) {
+    const safeName = p.name.replace(/[^a-zA-Z0-9\u4e00-\u9fff_-]/g, '_');
+    const cfg = { baseUrl: p.baseUrl, apiKey: p._key, model: (p.models && p.models[0]) || '', models: p.models, name: p.name, ts: p.ts };
+    const result = generateFormatContent('provider-full', cfg);
+    zip.file(`${safeName}.json`, result.content);
+  }
+  try {
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `api-providers_${new Date().toISOString().slice(0, 10)}.zip`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast(`✓ ${providers.length} ${currentLang === 'zh' ? '个服务商已导出' : 'providers exported'}`);
+  } catch (e) {
+    showToast((currentLang === 'zh' ? '导出失败: ' : 'Export failed: ') + e.message);
+  }
 }
 
 function closeModal() { document.getElementById('export-modal').classList.add('hidden'); }

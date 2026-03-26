@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
 <body>
   <div class="grid-bg" aria-hidden="true"></div>
@@ -160,6 +161,9 @@
             <div class="card-header-actions">
               <button class="btn-icon" onclick="testAllProviders()" title="Test All" id="btn-test-all">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7h12M9 3l4 4-4 4"/></svg>
+              </button>
+              <button class="btn-icon" onclick="exportAllProviders()" title="Export All" id="btn-export-all">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2h10M2 6h10M2 10h10"/><path d="M12 5l-2 2 2 2"/></svg>
               </button>
               <button class="btn-icon" onclick="importConfigs()" title="Import">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 1v9M3 6l4 4 4-4"/><path d="M1 11v1a1 1 0 001 1h10a1 1 0 001-1v-1"/></svg>
@@ -317,6 +321,21 @@
       <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;padding-top:16px">
         <button class="btn btn-outline" onclick="cancelConfirmModal()">取消</button>
         <button class="btn btn-primary" onclick="confirmConfirmModal()" style="background:var(--error);border-color:var(--error)">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Provider Export Modal -->
+  <div class="modal-overlay hidden" id="provider-export-modal">
+    <div class="modal" style="max-width:520px">
+      <div class="modal-header">
+        <h3 class="modal-title" id="provider-export-title"></h3>
+        <button class="btn-icon" onclick="closeProviderExportModal()">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="export-grid" id="provider-export-grid"></div>
       </div>
     </div>
   </div>
