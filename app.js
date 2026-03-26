@@ -61,8 +61,9 @@ const i18n = {
     export_desc: '将当前配置导出为各平台通用格式',
     footer_text: '纯静态 · AES-GCM 加密 · 无追踪',
     footer_star: '喜欢的话点个',
-    proxy_label: 'CORS 代理',
-    proxy_hint: '遇到跨域错误时开启，请求将通过服务器中转',
+    smart_paste_label: '智能识别',
+    smart_paste_placeholder: '粘贴配置文本，自动识别 Base URL、API Key 和模型名...',
+    smart_paste_btn: '识别并填入',
     onboarding_skip: '跳过',
     onboarding_next: '下一步',
     toast_saved: '✓ 已保存（密钥已加密）',
@@ -166,8 +167,9 @@ const i18n = {
     export_desc: 'Export current config for various platforms',
     footer_text: 'Static · AES-GCM Encrypted · No Tracking',
     footer_star: 'Like it? Star on',
-    proxy_label: 'CORS Proxy',
-    proxy_hint: 'Enable if you get cross-origin errors',
+    smart_paste_label: 'Smart Paste',
+    smart_paste_placeholder: 'Paste config text to auto-fill Base URL, API Key and Model...',
+    smart_paste_btn: 'Extract & Fill',
     onboarding_skip: 'Skip',
     onboarding_next: 'Next',
     toast_saved: '✓ Saved (key encrypted)',
@@ -288,69 +290,61 @@ function setupListeners() {
       dd.classList.add('hidden');
     }
   });
-  // Smart paste: detect config blocks on any field (paste + input fallback)
-  let smartPasteTimer = null;
-  ['base-url', 'api-key', 'model-name'].forEach(id => {
-    const el = document.getElementById(id);
-    el.addEventListener('paste', () => setTimeout(() => smartPaste(id), 0));
-    el.addEventListener('input', () => {
-      clearTimeout(smartPasteTimer);
-      smartPasteTimer = setTimeout(() => smartPaste(id), 300);
-    });
+  // Smart paste: auto-extract on paste into the dedicated textarea
+  document.getElementById('smart-paste-input').addEventListener('paste', () => {
+    setTimeout(() => runSmartPaste(), 50);
   });
 }
 
 // ══════════════════════════════════
-//  SMART PASTE — auto-extract fields from config blocks
+//  SMART PASTE — dedicated input area
 // ══════════════════════════════════
-function smartPaste(sourceFieldId) {
+function runSmartPaste() {
+  const raw = document.getElementById('smart-paste-input').value;
+  if (!raw.trim()) return;
+
   const fields = {
     url: document.getElementById('base-url'),
     key: document.getElementById('api-key'),
     model: document.getElementById('model-name'),
   };
-  const raw = fields[sourceFieldId === 'base-url' ? 'url' : sourceFieldId === 'api-key' ? 'key' : 'model'].value;
-
-  // Only trigger if pasted content looks like a multi-field block
-  if (!raw.includes('\n') && !raw.includes('{') && raw.length < 120) return;
-
-  // Extract API key: sk-... (32+ hex/alphanumeric chars)
-  const keyMatch = raw.match(/\b(sk-[a-zA-Z0-9_-]{20,})\b/);
-  // Extract base URL: https://... before path
-  const urlMatch = raw.match(/https?:\/\/[^\s"',\]})]+/);
-  // Extract model name patterns
-  const modelMatch = raw.match(/(?:model|model_name|MODEL)\s*[:=]\s*["']?([a-zA-Z0-9][\w.\-]*(?:\/[\w.\-]+)?)["']?/i);
 
   let filled = [];
 
-  if (keyMatch && fields.key.value !== keyMatch[1]) {
+  // Extract API key: sk-... (20+ chars)
+  const keyMatch = raw.match(/\b(sk-[a-zA-Z0-9_-]{20,})\b/);
+  if (keyMatch) {
     fields.key.value = keyMatch[1];
-    filled.push(currentLang === 'zh' ? 'API Key' : 'API Key');
+    filled.push('API Key');
   }
+
+  // Extract base URL: https://...
+  const urlMatch = raw.match(/https?:\/\/[^\s"',\]})\\]+/);
   if (urlMatch) {
-    // Clean the URL: remove trailing path components like /chat/completions
     let url = urlMatch[0].replace(/\/+$/, '');
-    // Normalize: ensure /v1 if not already there
-    if (fields.url.value !== url) {
-      fields.url.value = url;
-      filled.push('Base URL');
-    }
+    // Remove /chat/completions or /models suffix
+    url = url.replace(/\/(chat\/completions|models|completions)$/, '');
+    fields.url.value = url;
+    filled.push('Base URL');
   }
-  if (modelMatch && fields.model.value !== modelMatch[1]) {
+
+  // Extract model name
+  const modelMatch = raw.match(/(?:model|model_name|MODEL|review_model)\s*[:=]\s*["']?([a-zA-Z0-9][\w.\-]*(?:\/[\w.\-]+)?)["']?/i);
+  if (modelMatch) {
     fields.model.value = modelMatch[1];
     filled.push(currentLang === 'zh' ? '模型' : 'Model');
   }
 
-  // Clean the source field if it got the whole block
-  if (filled.length >= 2) {
-    // Re-set each field to just the extracted value (source field may have the whole block)
-    if (sourceFieldId === 'base-url' && urlMatch) fields.url.value = urlMatch[0].replace(/\/+$/, '');
-    if (sourceFieldId === 'api-key' && keyMatch) fields.key.value = keyMatch[1];
-    if (sourceFieldId === 'model-name' && modelMatch) fields.model.value = modelMatch[1];
-
+  if (filled.length > 0) {
+    // Clear the textarea after successful extraction
+    document.getElementById('smart-paste-input').value = '';
     showToast(currentLang === 'zh'
-      ? `✓ 智能识别：已自动填入 ${filled.join('、')}`
+      ? `✓ 智能识别：已填入 ${filled.join('、')}`
       : `✓ Smart paste: filled ${filled.join(', ')}`);
+  } else {
+    showToast(currentLang === 'zh'
+      ? '✗ 未识别到有效配置信息'
+      : '✗ No valid config found');
   }
 }
 

@@ -213,6 +213,44 @@ body {
 .field:last-child { margin-bottom: 0; }
 .field-row { display: flex; gap: 12px; margin-bottom: 16px; }
 
+/* Smart paste area */
+.smart-paste-area {
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: rgba(0,0,0,0.01);
+}
+.smart-paste-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.smart-paste-input {
+  width: 100%;
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  resize: vertical;
+  min-height: 48px;
+  max-height: 160px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.smart-paste-input:focus { border-color: var(--text-primary); }
+.smart-paste-input::placeholder { color: var(--text-muted); font-family: var(--font-main); font-size: 12px; }
+.smart-paste-btn {
+  margin-top: 8px;
+}
+
 .field-label {
   display: block;
   font-size: 12px;

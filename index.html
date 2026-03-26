@@ -89,6 +89,17 @@
             <h2 class="card-title" data-i18n="config_title">接口配置</h2>
           </div>
           <div class="card-body">
+            <div class="smart-paste-area" id="smart-paste-area">
+              <div class="smart-paste-header">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 4h12M2 8h8M2 12h10"/><circle cx="14" cy="10" r="2" fill="currentColor" stroke="none"/></svg>
+                <span data-i18n="smart_paste_label">智能识别</span>
+              </div>
+              <textarea id="smart-paste-input" class="smart-paste-input" rows="3" placeholder="粘贴配置文本，自动识别 Base URL、API Key 和模型名..." data-i18n-placeholder="smart_paste_placeholder"></textarea>
+              <button class="btn btn-outline btn-sm smart-paste-btn" onclick="runSmartPaste()">
+                <svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7h12M9 3l4 4-4 4"/></svg>
+                <span data-i18n="smart_paste_btn">识别并填入</span>
+              </button>
+            </div>
             <div class="field" id="field-base-url">
               <label class="field-label" for="base-url" data-i18n="label_base_url">Base URL</label>
               <input type="url" id="base-url" class="field-input" placeholder="https://api.openai.com/v1" value="https://api.openai.com/v1">
