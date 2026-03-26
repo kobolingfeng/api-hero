@@ -1,28 +1,39 @@
 # API Tester
 
-> 测试你的 OpenAI 兼容 API 是否可用。纯静态页面，密钥不离开浏览器。
+> 测试你的 OpenAI 兼容 API 是否可用。纯静态页面，密钥加密存储，不离开浏览器。
 
-🌐 **在线使用**：[https://api-hero-tester.netlify.app](https://api-hero-tester.netlify.app)
+## Links
+
+- 🌐 **在线使用**：[api-hero-tester.netlify.app](https://api-hero-tester.netlify.app)
+- 💬 **Linux.do**：[https://linux.do/t/topic/596078](https://linux.do/t/topic/596078)
+- 📦 **GitHub**：[github.com/kobolingfeng/api-hero](https://github.com/kobolingfeng/api-hero)
 
 ## 功能
 
-- **API 连通测试** — 输入 Base URL + API Key + Model，一键验证
-- **本地存储** — 自动记住你的配置（localStorage），不上传任何数据
-- **多平台导出** — 一键导出配置到 OpenAI .env / OpenClaw / Codex CLI / Claude Code / Antigravity / cURL / Python / JSON
-- **导入配置** — 支持从 `.json` / `.env` / `.toml` / `.yaml` 文件导入
-- **中英双语** — 默认中文，右上角可切换英文
+- **服务商管理** — 以服务商为单位管理 API 配置，支持重命名、删除、刷新模型列表
+- **自动获取模型** — 一键拉取服务商的全部可用模型，数量无限制
+- **AES-GCM 加密** — API Key 使用浏览器原生 Web Crypto API 加密存储
+- **一键连通测试** — 发送消息验证 API 可用性，支持逐步 Ping 诊断（DNS → HTTPS → 认证 → 模型）
+- **批量测试** — 一键测试所有已保存服务商的全部模型连通性
+- **多平台导出** — 单个服务商或批量导出为 OpenAI .env / Codex CLI / Claude Code / Antigravity / OpenClaw / cURL / Python / JSON
+- **ZIP 打包导出** — 一键导出所有服务商配置，每个一个 JSON，打包成 ZIP 下载
+- **导入配置** — 支持 `.json` / `.env` / `.toml` / `.yaml` 文件导入，导入即自动保存
+- **智能 URL 识别** — 自动处理 Base URL 加不加 `/v1`、尾斜杠等各种格式
+- **CORS 代理** — 内置 Netlify 无服务器函数代理，绕过 API 提供商的跨域限制
+- **中英双语** — 默认中文，右上角切换英文
+- **新手引导** — 首次访问自动弹出交互式引导
 
 ## 使用
 
-直接打开 `index.html`，或访问上面的在线地址。
+直接访问在线地址，或本地打开 `index.html`。
 
-> 部分 API 端点可能不支持浏览器跨域请求（CORS），遇到网络错误时请确认 API 是否支持跨域。
+> 本地打开时部分功能（模型获取、连接测试）可能受 CORS 限制，建议使用在线版本。
 
 ## 隐私
 
-- 纯静态，没有服务器
-- 所有数据存于 localStorage
-- API Key 不会发送到任何第三方
+- 纯静态前端，Netlify Functions 仅做请求转发
+- API Key 使用 AES-GCM 加密后存于 localStorage
+- 不收集、不上传任何用户数据
 
 ## License
 
