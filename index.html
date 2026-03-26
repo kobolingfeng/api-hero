@@ -289,6 +289,38 @@
     </div>
   </div>
 
+  <!-- Prompt Modal (replaces native prompt) -->
+  <div class="modal-overlay hidden" id="prompt-modal">
+    <div class="modal" style="max-width:420px">
+      <div class="modal-header">
+        <h3 class="modal-title" id="prompt-modal-title"></h3>
+        <button class="btn-icon" onclick="cancelPromptModal()">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <input type="text" id="prompt-modal-input" class="field-input" style="width:100%">
+      </div>
+      <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-outline" onclick="cancelPromptModal()" data-i18n="onboarding_skip">取消</button>
+        <button class="btn btn-primary" id="prompt-modal-ok" onclick="confirmPromptModal()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Modal (replaces native confirm) -->
+  <div class="modal-overlay hidden" id="confirm-modal">
+    <div class="modal" style="max-width:420px">
+      <div class="modal-header">
+        <h3 class="modal-title" id="confirm-modal-title"></h3>
+      </div>
+      <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;padding-top:16px">
+        <button class="btn btn-outline" onclick="cancelConfirmModal()">取消</button>
+        <button class="btn btn-primary" onclick="confirmConfirmModal()" style="background:var(--error);border-color:var(--error)">确认</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Test All Modal -->
   <div class="modal-overlay hidden" id="testall-modal">
     <div class="modal modal-wide">

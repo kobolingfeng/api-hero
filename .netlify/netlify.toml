@@ -1,14 +1,13 @@
+functionsDirectory = "D:\\项目\\ai测试\\netlify\\functions"
+functionsDirectoryOrigin = "default"
 headersOrigin = "config"
 plugins = []
 redirects = []
 
-[functions]
-
-[functions."*"]
-
 [build]
 publish = "D:\\项目\\ai测试"
 publishOrigin = "config"
+functions = "D:\\项目\\ai测试\\netlify\\functions"
 
 [build.environment]
 
@@ -23,6 +22,10 @@ publishOrigin = "config"
 [build.processing.js]
 
 [build.services]
+
+[functions]
+
+[functions."*"]
 
 [[headers]]
 for = "/*"

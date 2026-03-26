@@ -246,7 +246,8 @@ function setupListeners() {
     if (e.target === e.currentTarget) closeTestAllModal();
   });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeModal(); closeTestAllModal(); }
+    if (e.key === 'Escape') { closeModal(); closeTestAllModal(); cancelPromptModal(); cancelConfirmModal(); }
+    if (e.key === 'Enter' && !document.getElementById('prompt-modal').classList.contains('hidden')) { confirmPromptModal(); }
   });
   document.addEventListener('click', e => {
     const dd = document.getElementById('model-dropdown');
@@ -461,27 +462,26 @@ async function getProviders() {
 async function saveConfig() {
   const c = getConfig();
   if (!c.baseUrl || !c.apiKey) { showToast(t('toast_need_config')); return; }
-  const name = prompt(t('prompt_name'), extractHost(c.baseUrl));
-  if (!name) return;
 
-  showToast(t('toast_fetching_models'));
-  const models = await fetchModelsRaw(c.baseUrl, c.apiKey);
-  // If we got models, use them; otherwise use the current model field as fallback
-  const modelList = models.length > 0 ? models : (c.model ? [c.model] : []);
-
-  const encKey = await encryptText(c.apiKey);
-  const raw = getRawProviders();
-  raw.push({
-    id: Date.now(),
-    name,
-    baseUrl: c.baseUrl,
-    apiKey: encKey,
-    models: modelList,
-    ts: new Date().toISOString()
+  showPromptModal(t('prompt_name'), extractHost(c.baseUrl), async (name) => {
+    if (!name) return;
+    showToast(t('toast_fetching_models'));
+    const models = await fetchModelsRaw(c.baseUrl, c.apiKey);
+    const modelList = models.length > 0 ? models : (c.model ? [c.model] : []);
+    const encKey = await encryptText(c.apiKey);
+    const raw = getRawProviders();
+    raw.push({
+      id: Date.now(),
+      name,
+      baseUrl: c.baseUrl,
+      apiKey: encKey,
+      models: modelList,
+      ts: new Date().toISOString()
+    });
+    setProviders(raw);
+    renderProviders();
+    showToast(t('toast_saved') + ` — ${modelList.length} ${currentLang === 'zh' ? '个模型' : 'models'}`);
   });
-  setProviders(raw);
-  renderProviders();
-  showToast(t('toast_saved') + ` — ${modelList.length} ${currentLang === 'zh' ? '个模型' : 'models'}`);
 }
 
 // ══════════════════════════════════
@@ -560,21 +560,23 @@ async function renameProvider(id) {
   const raw = getRawProviders();
   const p = raw.find(x => x.id === id);
   if (!p) return;
-  const newName = prompt(t('prompt_rename'), p.name);
-  if (!newName || newName === p.name) return;
-  p.name = newName;
-  setProviders(raw);
-  renderProviders();
-  showToast(t('toast_renamed'));
+  showPromptModal(t('prompt_rename'), p.name, (newName) => {
+    if (!newName || newName === p.name) return;
+    p.name = newName;
+    setProviders(raw);
+    renderProviders();
+    showToast(t('toast_renamed'));
+  });
 }
 
 async function deleteProvider(id) {
-  if (!confirm(t('confirm_delete'))) return;
-  const raw = getRawProviders().filter(p => p.id !== id);
-  expandedProviders.delete(id);
-  setProviders(raw);
-  renderProviders();
-  showToast(t('toast_deleted'));
+  showConfirmModal(t('confirm_delete'), () => {
+    const raw = getRawProviders().filter(p => p.id !== id);
+    expandedProviders.delete(id);
+    setProviders(raw);
+    renderProviders();
+    showToast(t('toast_deleted'));
+  });
 }
 
 async function refreshProviderModels(id) {
@@ -1124,3 +1126,47 @@ function renderOnboardingStep() {
 
 // ── Utility ──
 function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// ══════════════════════════════════
+//  CUSTOM MODALS (replace prompt/confirm)
+// ══════════════════════════════════
+let _promptCallback = null;
+let _confirmCallback = null;
+
+function showPromptModal(title, defaultValue, callback) {
+  _promptCallback = callback;
+  document.getElementById('prompt-modal-title').textContent = title;
+  const input = document.getElementById('prompt-modal-input');
+  input.value = defaultValue || '';
+  document.getElementById('prompt-modal').classList.remove('hidden');
+  setTimeout(() => { input.focus(); input.select(); }, 50);
+}
+
+function confirmPromptModal() {
+  const val = document.getElementById('prompt-modal-input').value.trim();
+  document.getElementById('prompt-modal').classList.add('hidden');
+  if (_promptCallback && val) _promptCallback(val);
+  _promptCallback = null;
+}
+
+function cancelPromptModal() {
+  document.getElementById('prompt-modal').classList.add('hidden');
+  _promptCallback = null;
+}
+
+function showConfirmModal(title, callback) {
+  _confirmCallback = callback;
+  document.getElementById('confirm-modal-title').textContent = title;
+  document.getElementById('confirm-modal').classList.remove('hidden');
+}
+
+function confirmConfirmModal() {
+  document.getElementById('confirm-modal').classList.add('hidden');
+  if (_confirmCallback) _confirmCallback();
+  _confirmCallback = null;
+}
+
+function cancelConfirmModal() {
+  document.getElementById('confirm-modal').classList.add('hidden');
+  _confirmCallback = null;
+}
