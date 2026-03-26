@@ -110,9 +110,26 @@
               <p class="field-hint" data-i18n="hint_api_key">你的 API 密钥，保存时会使用 AES-GCM 加密</p>
             </div>
             <div class="field" id="field-model">
-              <label class="field-label" for="model-name" data-i18n="label_model">模型</label>
-              <input type="text" id="model-name" class="field-input" placeholder="gpt-4o" value="gpt-3.5-turbo">
-              <p class="field-hint" data-i18n="hint_model">要测试的模型名称，如 gpt-4o、gpt-3.5-turbo</p>
+              <label class="field-label" for="model-name">
+                <span data-i18n="label_model">模型</span>
+              </label>
+              <div class="field-input-wrap">
+                <input type="text" id="model-name" class="field-input" placeholder="gpt-4o" value="gpt-3.5-turbo" autocomplete="off">
+                <button class="field-btn-icon" id="btn-fetch-models" onclick="fetchModels()" title="Fetch models">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+                    <path d="M2 8a6 6 0 0111.5-2.3" /><path d="M14 8a6 6 0 01-11.5 2.3"/>
+                    <path d="M13 2v4h-4"/><path d="M3 14v-4h4"/>
+                  </svg>
+                </button>
+              </div>
+              <p class="field-hint" data-i18n="hint_model">手动输入或点击右侧按钮自动获取可用模型</p>
+              <div class="model-dropdown hidden" id="model-dropdown">
+                <div class="model-dropdown-header">
+                  <span class="model-dropdown-title" data-i18n="models_available">可用模型</span>
+                  <span class="model-dropdown-count" id="model-count"></span>
+                </div>
+                <div class="model-dropdown-list" id="model-list"></div>
+              </div>
             </div>
             <div class="field" id="field-prompt">
               <label class="field-label" for="test-prompt" data-i18n="label_prompt">测试 Prompt</label>
@@ -141,6 +158,9 @@
             <div class="card-dot"></div>
             <h2 class="card-title" data-i18n="saved_title">已保存</h2>
             <div class="card-header-actions">
+              <button class="btn-icon" onclick="testAllProviders()" title="Test All" id="btn-test-all">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7h12M9 3l4 4-4 4"/></svg>
+              </button>
               <button class="btn-icon" onclick="importConfigs()" title="Import">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 1v9M3 6l4 4 4-4"/><path d="M1 11v1a1 1 0 001 1h10a1 1 0 001-1v-1"/></svg>
               </button>
@@ -265,6 +285,24 @@
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 1v9M3 6l4 4 4-4"/><path d="M1 11v1.5A1.5 1.5 0 002.5 14h9a1.5 1.5 0 001.5-1.5V11"/></svg>
           <span data-i18n="btn_download">下载</span>
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Test All Modal -->
+  <div class="modal-overlay hidden" id="testall-modal">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h3 class="modal-title" id="testall-title" data-i18n="testall_title">批量测试</h3>
+        <button class="btn-icon" onclick="closeTestAllModal()">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="testall-results"></div>
+      </div>
+      <div class="modal-footer">
+        <div class="testall-summary" id="testall-summary"></div>
       </div>
     </div>
   </div>

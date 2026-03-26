@@ -25,7 +25,20 @@ const i18n = {
     label_prompt: '测试 Prompt',
     hint_base_url: 'API 提供商的接口地址，通常以 /v1 结尾',
     hint_api_key: '你的 API 密钥，保存时会使用 AES-GCM 加密',
-    hint_model: '要测试的模型名称，如 gpt-4o、gpt-3.5-turbo',
+    hint_model: '手动输入或点击右侧按钮自动获取可用模型',
+    models_available: '可用模型',
+    models_fetching: '正在获取模型列表…',
+    models_none: '未找到可用模型',
+    models_error: '获取模型列表失败',
+    testall_title: '批量测试',
+    testall_empty: '没有保存的配置，请先保存至少一个',
+    testall_running: '正在批量测试…',
+    testall_done: '批量测试完成',
+    testall_pass: '通过',
+    testall_fail: '失败',
+    testall_fetching: '获取模型…',
+    testall_testing: '测试中…',
+    testall_nomodels: '无法获取模型列表',
     btn_test: '测试连接',
     btn_ping: '连通检测',
     btn_save: '保存',
@@ -77,7 +90,7 @@ const i18n = {
       { title: '👋 欢迎使用 API Tester', desc: '这是一个纯静态的 OpenAI 兼容 API 测试工具。你的 API Key 使用 AES-GCM 加密存储在浏览器中，不会发送到任何第三方服务器。\n\n让我带你快速了解各个功能。' },
       { title: '① 填写 Base URL', desc: 'API 提供商给你的接口地址。通常格式为 https://xxx.com/v1 。如果不确定，可以先试试填入提供商给的地址。', target: 'field-base-url' },
       { title: '② 填写 API Key', desc: '你的 API 密钥。输入框默认隐藏内容，点击右侧 👁 可切换显示。保存时会自动加密，不会以明文存储。', target: 'field-api-key' },
-      { title: '③ 选择模型', desc: '填写你要测试的模型名称，比如 gpt-4o、gpt-3.5-turbo、claude-3 等。不同提供商支持的模型不同。', target: 'field-model' },
+      { title: '③ 选择模型', desc: '手动填写模型名称，或点击输入框右侧的刷新按钮自动获取提供商的可用模型列表。', target: 'field-model' },
       { title: '④ 测试连接', desc: '• 「测试连接」会发送一条消息并获取完整回复\n• 「连通检测」会逐步检查 DNS、HTTPS、认证和模型是否可用\n• 「保存」会加密保存当前配置以便下次使用', target: 'card-actions' },
       { title: '⑤ 管理已保存的配置', desc: '保存过的配置会出现在这里。点击即可快速加载，也可以导入外部配置文件（支持 .json / .env / .toml / .yaml）。', target: 'card-saved' },
       { title: '⑥ 导出配置', desc: '你可以将当前配置一键导出为 OpenAI .env、Codex CLI、Claude Code、cURL、Python 等多种主流格式，方便在不同工具中使用。', target: 'card-export' },
@@ -96,7 +109,20 @@ const i18n = {
     label_prompt: 'Test Prompt',
     hint_base_url: 'Your API provider endpoint, usually ending with /v1',
     hint_api_key: 'Your API key — saved with AES-GCM encryption',
-    hint_model: 'Model name to test, e.g. gpt-4o, gpt-3.5-turbo',
+    hint_model: 'Type manually or click the refresh button to auto-fetch',
+    models_available: 'Available Models',
+    models_fetching: 'Fetching model list…',
+    models_none: 'No models found',
+    models_error: 'Failed to fetch models',
+    testall_title: 'Batch Test',
+    testall_empty: 'No saved configs. Save at least one first.',
+    testall_running: 'Running batch test…',
+    testall_done: 'Batch test complete',
+    testall_pass: 'Pass',
+    testall_fail: 'Fail',
+    testall_fetching: 'Fetching…',
+    testall_testing: 'Testing…',
+    testall_nomodels: 'Cannot list models',
     btn_test: 'Test',
     btn_ping: 'Ping',
     btn_save: 'Save',
@@ -148,7 +174,7 @@ const i18n = {
       { title: '👋 Welcome to API Tester', desc: 'A fully static OpenAI-compatible API testing tool. Your API Key is encrypted with AES-GCM and stored only in your browser.\n\nLet me walk you through the features.' },
       { title: '① Base URL', desc: 'The endpoint URL from your API provider. Usually something like https://api.openai.com/v1. If unsure, paste the URL your provider gave you.', target: 'field-base-url' },
       { title: '② API Key', desc: 'Your secret API key. The input is masked by default — click the 👁 icon to toggle visibility. Keys are encrypted before saving.', target: 'field-api-key' },
-      { title: '③ Model', desc: 'The model name you want to test, like gpt-4o, gpt-3.5-turbo, etc. Different providers support different models.', target: 'field-model' },
+      { title: '③ Model', desc: 'Type a model name manually, or click the refresh icon next to the input to auto-fetch available models from the provider.', target: 'field-model' },
       { title: '④ Test & Save', desc: '• "Test" sends a message and gets a full response\n• "Ping" runs a step-by-step connectivity check\n• "Save" encrypts and stores the current config', target: 'card-actions' },
       { title: '⑤ Saved Configs', desc: 'Your saved configurations appear here. Click to load, or import configs from .json / .env / .toml / .yaml files.', target: 'card-saved' },
       { title: '⑥ Export', desc: 'Export your config in multiple formats: OpenAI .env, Codex CLI, Claude Code, cURL, Python and more.', target: 'card-export' },
@@ -201,7 +227,20 @@ function setupListeners() {
   document.getElementById('export-modal').addEventListener('click', e => {
     if (e.target === e.currentTarget) closeModal();
   });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+  document.getElementById('testall-modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeTestAllModal();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeModal(); closeTestAllModal(); }
+  });
+  // Close model dropdown when clicking outside
+  document.addEventListener('click', e => {
+    const dd = document.getElementById('model-dropdown');
+    const field = document.getElementById('field-model');
+    if (!dd.classList.contains('hidden') && !field.contains(e.target)) {
+      dd.classList.add('hidden');
+    }
+  });
 }
 
 // ══════════════════════════════════
@@ -517,6 +556,206 @@ function stepIcon(status) {
     case 'running': return '<div class="mini-spinner"></div>';
     default: return '○';
   }
+}
+
+// ══════════════════════════════════
+//  FETCH MODELS
+// ══════════════════════════════════
+async function fetchModels() {
+  const baseUrl = document.getElementById('base-url').value.trim();
+  const apiKey = document.getElementById('api-key').value.trim();
+  if (!baseUrl) { showToast(t('toast_need_url')); return; }
+  if (!apiKey) { showToast(t('toast_need_key')); return; }
+
+  const btn = document.getElementById('btn-fetch-models');
+  const dropdown = document.getElementById('model-dropdown');
+  const list = document.getElementById('model-list');
+  const countEl = document.getElementById('model-count');
+
+  btn.classList.add('spinning');
+  dropdown.classList.remove('hidden');
+  list.innerHTML = `<div class="model-loading">${t('models_fetching')}</div>`;
+  countEl.textContent = '';
+
+  try {
+    const base = normalizeBase(baseUrl);
+    const res = await fetch(`${base}/models`, {
+      headers: { 'Authorization': `Bearer ${apiKey}` }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const models = (data.data || []).map(m => m.id).sort();
+
+    if (models.length === 0) {
+      list.innerHTML = `<div class="model-loading">${t('models_none')}</div>`;
+      countEl.textContent = '0';
+    } else {
+      const current = document.getElementById('model-name').value.trim();
+      countEl.textContent = models.length;
+      list.innerHTML = models.map(id => `
+        <button class="model-option${id === current ? ' selected' : ''}" onclick="selectModel('${esc(id)}')">
+          <span class="model-option-id">${esc(id)}</span>
+        </button>
+      `).join('');
+    }
+  } catch (e) {
+    list.innerHTML = `<div class="model-loading">${t('models_error')}: ${esc(e.message)}</div>`;
+  } finally {
+    btn.classList.remove('spinning');
+  }
+}
+
+function selectModel(id) {
+  document.getElementById('model-name').value = id;
+  document.getElementById('model-dropdown').classList.add('hidden');
+  showToast('✓ ' + id);
+}
+
+// Helper: fetch models for a given base/key (used by test-all)
+async function fetchModelsForProvider(baseUrl, apiKey) {
+  try {
+    const base = normalizeBase(baseUrl);
+    const res = await fetch(`${base}/models`, {
+      headers: { 'Authorization': `Bearer ${apiKey}` }
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.data || []).map(m => m.id).sort();
+  } catch { return []; }
+}
+
+// ══════════════════════════════════
+//  TEST ALL PROVIDERS
+// ══════════════════════════════════
+let testAllAbort = false;
+
+async function testAllProviders() {
+  const saved = await getSaved();
+  if (!saved.length) { showToast(t('testall_empty')); return; }
+
+  testAllAbort = false;
+  document.getElementById('testall-modal').classList.remove('hidden');
+
+  const container = document.getElementById('testall-results');
+  const summary = document.getElementById('testall-summary');
+  let totalOk = 0, totalFail = 0;
+
+  // Build initial structure
+  const providerData = saved.map(s => ({
+    id: s.id, name: s.name, baseUrl: s.baseUrl, apiKey: s._decryptedKey,
+    savedModel: s.model, models: [], status: 'run', results: []
+  }));
+
+  function render() {
+    container.innerHTML = providerData.map(p => `
+      <div class="testall-provider">
+        <div class="testall-provider-header">
+          <span class="testall-provider-name">${esc(p.name)}</span>
+          <span class="testall-provider-url">${esc(extractHost(p.baseUrl))}</span>
+          <span class="testall-provider-status s-${p.status}">${providerStatusText(p.status)}</span>
+        </div>
+        <div class="testall-models">
+          ${p.results.length === 0 && p.status === 'run'
+            ? `<div class="testall-model-row"><div class="testall-model-name" style="color:var(--text-muted)">${t('testall_fetching')}</div><div class="testall-model-status ms-run"><span class="mini-spinner-sm"></span></div></div>`
+            : p.results.map(r => `
+              <div class="testall-model-row">
+                <div class="testall-model-name">${esc(r.model)}</div>
+                <div class="testall-model-latency">${r.latency ? r.latency + 'ms' : ''}</div>
+                <div class="testall-model-status ms-${r.status}">${modelStatusText(r.status)}</div>
+              </div>
+            `).join('')
+          }
+          ${p.results.length === 0 && p.status === 'fail'
+            ? `<div class="testall-model-row"><div class="testall-model-name" style="color:var(--error)">${t('testall_nomodels')}</div></div>`
+            : ''
+          }
+        </div>
+      </div>
+    `).join('');
+
+    summary.innerHTML = `
+      <span class="sum-ok">✓ ${totalOk} ${t('testall_pass')}</span>
+      <span class="sum-fail">✗ ${totalFail} ${t('testall_fail')}</span>
+    `;
+  }
+  render();
+
+  // Process each provider
+  for (const p of providerData) {
+    if (testAllAbort) break;
+
+    // Fetch models
+    const models = await fetchModelsForProvider(p.baseUrl, p.apiKey);
+    const modelsToTest = models.length > 0 ? models.slice(0, 10) : (p.savedModel ? [p.savedModel] : []);
+
+    if (modelsToTest.length === 0) {
+      p.status = 'fail';
+      totalFail++;
+      render();
+      continue;
+    }
+
+    // Test each model
+    p.results = modelsToTest.map(m => ({ model: m, status: 'wait', latency: null }));
+    render();
+
+    let providerOk = true;
+    for (let i = 0; i < p.results.length; i++) {
+      if (testAllAbort) break;
+      p.results[i].status = 'run';
+      render();
+
+      try {
+        const base = normalizeBase(p.baseUrl);
+        const t0 = performance.now();
+        const res = await fetch(`${base}/chat/completions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${p.apiKey}` },
+          body: JSON.stringify({
+            model: p.results[i].model,
+            messages: [{ role: 'user', content: 'Hi' }],
+            max_tokens: 1
+          })
+        });
+        const elapsed = Math.round(performance.now() - t0);
+        p.results[i].latency = elapsed;
+
+        if (res.ok) {
+          p.results[i].status = 'ok';
+          totalOk++;
+        } else {
+          p.results[i].status = 'fail';
+          totalFail++;
+          providerOk = false;
+        }
+      } catch {
+        p.results[i].status = 'fail';
+        totalFail++;
+        providerOk = false;
+      }
+      render();
+    }
+    p.status = providerOk ? 'ok' : 'fail';
+    render();
+  }
+}
+
+function providerStatusText(s) {
+  if (s === 'ok') return '✓ ' + t('testall_pass');
+  if (s === 'fail') return '✗ ' + t('testall_fail');
+  return t('testall_running');
+}
+
+function modelStatusText(s) {
+  if (s === 'ok') return '✓';
+  if (s === 'fail') return '✗';
+  if (s === 'run') return '<span class="mini-spinner-sm"></span>';
+  return '○';
+}
+
+function closeTestAllModal() {
+  testAllAbort = true;
+  document.getElementById('testall-modal').classList.add('hidden');
 }
 
 // ══════════════════════════════════
