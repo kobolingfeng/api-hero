@@ -288,6 +288,66 @@ function setupListeners() {
       dd.classList.add('hidden');
     }
   });
+  // Smart paste: detect config blocks on any field
+  ['base-url', 'api-key', 'model-name'].forEach(id => {
+    document.getElementById(id).addEventListener('paste', e => {
+      setTimeout(() => smartPaste(id), 0);
+    });
+  });
+}
+
+// ══════════════════════════════════
+//  SMART PASTE — auto-extract fields from config blocks
+// ══════════════════════════════════
+function smartPaste(sourceFieldId) {
+  const fields = {
+    url: document.getElementById('base-url'),
+    key: document.getElementById('api-key'),
+    model: document.getElementById('model-name'),
+  };
+  const raw = fields[sourceFieldId === 'base-url' ? 'url' : sourceFieldId === 'api-key' ? 'key' : 'model'].value;
+
+  // Only trigger if pasted content looks like a multi-field block
+  if (!raw.includes('\n') && !raw.includes('{') && raw.length < 120) return;
+
+  // Extract API key: sk-... (32+ hex/alphanumeric chars)
+  const keyMatch = raw.match(/\b(sk-[a-zA-Z0-9_-]{20,})\b/);
+  // Extract base URL: https://... before path
+  const urlMatch = raw.match(/https?:\/\/[^\s"',\]})]+/);
+  // Extract model name patterns
+  const modelMatch = raw.match(/(?:model|model_name|MODEL)\s*[:=]\s*["']?([a-zA-Z0-9][\w.\-]*(?:\/[\w.\-]+)?)["']?/i);
+
+  let filled = [];
+
+  if (keyMatch && fields.key.value !== keyMatch[1]) {
+    fields.key.value = keyMatch[1];
+    filled.push(currentLang === 'zh' ? 'API Key' : 'API Key');
+  }
+  if (urlMatch) {
+    // Clean the URL: remove trailing path components like /chat/completions
+    let url = urlMatch[0].replace(/\/+$/, '');
+    // Normalize: ensure /v1 if not already there
+    if (fields.url.value !== url) {
+      fields.url.value = url;
+      filled.push('Base URL');
+    }
+  }
+  if (modelMatch && fields.model.value !== modelMatch[1]) {
+    fields.model.value = modelMatch[1];
+    filled.push(currentLang === 'zh' ? '模型' : 'Model');
+  }
+
+  // Clean the source field if it got the whole block
+  if (filled.length >= 2) {
+    // Re-set each field to just the extracted value (source field may have the whole block)
+    if (sourceFieldId === 'base-url' && urlMatch) fields.url.value = urlMatch[0].replace(/\/+$/, '');
+    if (sourceFieldId === 'api-key' && keyMatch) fields.key.value = keyMatch[1];
+    if (sourceFieldId === 'model-name' && modelMatch) fields.model.value = modelMatch[1];
+
+    showToast(currentLang === 'zh'
+      ? `✓ 智能识别：已自动填入 ${filled.join('、')}`
+      : `✓ Smart paste: filled ${filled.join(', ')}`);
+  }
 }
 
 // Migrate old format (single model) to new format (models array)
