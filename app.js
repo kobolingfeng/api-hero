@@ -391,6 +391,48 @@ function normalizeBase(url) {
 function extractHost(url) { try { return new URL(url).hostname; } catch { return 'provider'; } }
 
 // ══════════════════════════════════
+//  PROXY FETCH (bypass CORS)
+// ══════════════════════════════════
+// When deployed on Netlify, use the serverless proxy function
+// When running locally (file://), try direct fetch first, then proxy
+function getProxyUrl() {
+  if (location.hostname && location.hostname !== '') {
+    return '/.netlify/functions/proxy';
+  }
+  return null; // local file, no proxy available
+}
+
+async function proxyFetch(url, options = {}) {
+  const proxyUrl = getProxyUrl();
+  if (!proxyUrl) {
+    // Direct fetch (will fail on CORS in some cases)
+    return fetch(url, options);
+  }
+  // Route through Netlify proxy
+  const proxyBody = {
+    targetUrl: url,
+    method: options.method || 'GET',
+    headers: {},
+  };
+  if (options.headers) {
+    // Extract headers from Headers object or plain object
+    if (options.headers instanceof Headers) {
+      options.headers.forEach((v, k) => { proxyBody.headers[k] = v; });
+    } else {
+      proxyBody.headers = { ...options.headers };
+    }
+  }
+  if (options.body) {
+    proxyBody.body = options.body;
+  }
+  return fetch(proxyUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(proxyBody),
+  });
+}
+
+// ══════════════════════════════════
 //  PROVIDER STORAGE (encrypted)
 // ══════════════════════════════════
 // Data model: { id, name, baseUrl, apiKey (encrypted), models: string[], ts }
@@ -560,17 +602,15 @@ async function fetchModelsRaw(baseUrl, apiKey) {
   const base = normalizeBase(baseUrl);
   // Try multiple URL patterns — some providers use /v1/models, some don't
   const urlsToTry = [base + '/models'];
-  // If base ends with /v1, also try without
   if (base.endsWith('/v1')) {
     urlsToTry.push(base.replace(/\/v1$/, '') + '/models');
   } else {
-    // If base doesn't end with /v1, also try with
     urlsToTry.push(base + '/v1/models');
   }
 
   for (const url of urlsToTry) {
     try {
-      const res = await fetch(url, {
+      const res = await proxyFetch(url, {
         headers: { 'Authorization': `Bearer ${apiKey}` }
       });
       if (!res.ok) continue;
@@ -640,7 +680,7 @@ async function testAPI() {
   const t0 = performance.now();
   try {
     const base = normalizeBase(c.baseUrl);
-    const res = await fetch(`${base}/chat/completions`, {
+    const res = await proxyFetch(`${base}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${c.apiKey}` },
       body: JSON.stringify({
@@ -732,7 +772,7 @@ async function pingAPI() {
   steps[0].status = 'running'; steps[0].detail = t('ping_running'); renderSteps();
   try {
     const t0 = performance.now();
-    await fetch(base, { method: 'HEAD', mode: 'no-cors' });
+    await proxyFetch(base, { method: 'HEAD' });
     steps[0].status = 'ok'; steps[0].detail = t('ping_dns_ok') + ` (${Math.round(performance.now() - t0)}ms)`;
   } catch (e) { steps[0].status = 'fail'; steps[0].detail = e.message; allOk = false; }
   renderSteps();
@@ -741,7 +781,7 @@ async function pingAPI() {
   steps[1].status = 'running'; steps[1].detail = t('ping_running'); renderSteps();
   try {
     const t0 = performance.now();
-    const res = await fetch(`${base}/models`, { headers: { 'Authorization': `Bearer ${c.apiKey}` } });
+    const res = await proxyFetch(`${base}/models`, { headers: { 'Authorization': `Bearer ${c.apiKey}` } });
     steps[1].status = 'ok'; steps[1].detail = t('ping_tls_ok') + ` (${Math.round(performance.now() - t0)}ms)`;
 
     steps[2].status = 'running'; steps[2].detail = t('ping_running'); renderSteps();
@@ -857,7 +897,7 @@ async function testAllProviders() {
       try {
         const base = normalizeBase(p.baseUrl);
         const t0 = performance.now();
-        const res = await fetch(`${base}/chat/completions`, {
+        const res = await proxyFetch(`${base}/chat/completions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${p.apiKey}` },
           body: JSON.stringify({
