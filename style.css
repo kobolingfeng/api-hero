@@ -442,8 +442,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 480px;
-  overflow-y: auto;
 }
 
 .empty-state {
@@ -460,7 +458,6 @@ body {
 .provider-card {
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  overflow: hidden;
   transition: border-color var(--transition);
 }
 .provider-card:hover { border-color: var(--border-hover); }
@@ -520,8 +517,13 @@ body {
 /* Provider model list (collapsed/expanded) */
 .provider-models {
   border-top: 1px solid var(--border);
-  max-height: 300px;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-radius: 0 0 var(--radius) var(--radius);
+  max-height: 400px;
   overflow-y: auto;
+  margin-top: -1px;
 }
 
 .provider-model-item {
