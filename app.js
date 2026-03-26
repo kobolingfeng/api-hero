@@ -369,10 +369,22 @@ function loadLastUsed() {
 }
 
 function normalizeBase(url) {
-  let base = url.replace(/\/+$/, '');
-  if (!base.endsWith('/v1')) {
-    try { const u = new URL(base); if (u.pathname === '/' || u.pathname === '') base += '/v1'; } catch {}
+  let base = url.trim().replace(/\/+$/, '');
+  // Strip common trailing path fragments that users might paste
+  // e.g. /chat/completions, /models
+  base = base.replace(/\/(chat\/completions|models|completions)$/i, '');
+  // If the URL already contains /v1 somewhere, keep it
+  if (/\/v1($|\/)/i.test(base)) {
+    // Trim to the /v1 part
+    base = base.replace(/(\/v1)\/.*/i, '$1');
+    return base;
   }
+  // Otherwise, append /v1
+  try {
+    const u = new URL(base);
+    if (u.pathname === '/' || u.pathname === '') base += '/v1';
+    else if (!u.pathname.includes('/v')) base += '/v1';
+  } catch {}
   return base;
 }
 
@@ -545,15 +557,29 @@ async function refreshProviderModels(id) {
 //  FETCH MODELS
 // ══════════════════════════════════
 async function fetchModelsRaw(baseUrl, apiKey) {
-  try {
-    const base = normalizeBase(baseUrl);
-    const res = await fetch(`${base}/models`, {
-      headers: { 'Authorization': `Bearer ${apiKey}` }
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return (data.data || []).map(m => m.id).sort();
-  } catch { return []; }
+  const base = normalizeBase(baseUrl);
+  // Try multiple URL patterns — some providers use /v1/models, some don't
+  const urlsToTry = [base + '/models'];
+  // If base ends with /v1, also try without
+  if (base.endsWith('/v1')) {
+    urlsToTry.push(base.replace(/\/v1$/, '') + '/models');
+  } else {
+    // If base doesn't end with /v1, also try with
+    urlsToTry.push(base + '/v1/models');
+  }
+
+  for (const url of urlsToTry) {
+    try {
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${apiKey}` }
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const models = (data.data || []).map(m => m.id).sort();
+      if (models.length > 0) return models;
+    } catch { /* try next */ }
+  }
+  return [];
 }
 
 // UI fetch models → show dropdown
@@ -577,7 +603,10 @@ async function fetchModels() {
   fetchedModelsCache = models;
 
   if (models.length === 0) {
-    list.innerHTML = `<div class="model-loading">${t('models_none')}</div>`;
+    const corsHint = location.protocol === 'file:'
+      ? (currentLang === 'zh' ? '\n提示：本地文件打开可能因 CORS 限制无法获取，请使用在线版本' : '\nTip: Local file may be blocked by CORS. Use the online version.')
+      : '';
+    list.innerHTML = `<div class="model-loading">${t('models_none')}${corsHint}</div>`;
     countEl.textContent = '0';
   } else {
     const current = document.getElementById('model-name').value.trim();
