@@ -82,7 +82,6 @@
 
     <div class="layout">
       <div class="col-left">
-        <!-- Config Card -->
         <section class="card" id="card-config">
           <div class="card-header">
             <div class="card-dot"></div>
@@ -164,60 +163,6 @@
           </div>
         </section>
 
-        <!-- Saved Configs Card -->
-        <section class="card" id="card-saved">
-          <div class="card-header">
-            <div class="card-dot"></div>
-            <h2 class="card-title" data-i18n="saved_title">已保存</h2>
-            <div class="card-header-actions">
-              <button class="btn-icon" onclick="testAllProviders()" title="Test All" id="btn-test-all">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7h12M9 3l4 4-4 4"/></svg>
-              </button>
-              <button class="btn-icon" onclick="exportAllProviders()" title="Export All" id="btn-export-all">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2h10M2 6h10M2 10h10"/><path d="M12 5l-2 2 2 2"/></svg>
-              </button>
-              <button class="btn-icon" onclick="importConfigs()" title="Import">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 1v9M3 6l4 4 4-4"/><path d="M1 11v1a1 1 0 001 1h10a1 1 0 001-1v-1"/></svg>
-              </button>
-            </div>
-            <input type="file" id="import-file" accept=".json,.toml,.env,.yaml,.yml" class="sr-only">
-          </div>
-          <div class="card-body">
-            <div class="saved-list" id="saved-list">
-              <div class="empty-state" id="empty-state">
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3">
-                  <rect x="4" y="4" width="24" height="24" rx="3"/>
-                  <path d="M10 16h12M16 10v12" stroke-dasharray="2 2"/>
-                </svg>
-                <p data-i18n="empty_saved">暂无保存的配置</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Model Probe Card -->
-        <section class="card" id="card-probe">
-          <div class="card-header">
-            <div class="card-dot"></div>
-            <h2 class="card-title" data-i18n="probe_title">模型探测</h2>
-          </div>
-          <div class="card-body">
-            <div class="probe-search">
-              <select id="probe-select" class="field-input" onchange="onProbeSelect()">
-                <option value="" data-i18n="probe_placeholder">选择要探测的模型…</option>
-              </select>
-              <button class="btn btn-primary btn-sm" onclick="runProbeAll()" id="btn-probe-all" disabled>
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7h12M9 3l4 4-4 4"/></svg>
-                <span data-i18n="probe_all">全部探测</span>
-              </button>
-            </div>
-            <div class="probe-hint" data-i18n="probe_hint">选择一个模型，查看哪些已保存服务商支持该模型并测试连通性</div>
-            <div id="probe-results"></div>
-          </div>
-        </section>
-      </div>
-
-      <div class="col-right">
         <!-- Results Card -->
         <section class="card" id="card-results">
           <div class="card-header">
@@ -294,6 +239,60 @@
               <button class="export-item" onclick="exportConfig('python')"><span class="export-label">Python</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
               <button class="export-item" onclick="exportConfig('json')"><span class="export-label">JSON</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
             </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="col-right">
+        <!-- Saved Configs Card -->
+        <section class="card" id="card-saved">
+          <div class="card-header">
+            <div class="card-dot"></div>
+            <h2 class="card-title" data-i18n="saved_title">已保存</h2>
+            <div class="card-header-actions">
+              <button class="btn-icon" onclick="testAllProviders()" title="Test All" id="btn-test-all">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7h12M9 3l4 4-4 4"/></svg>
+              </button>
+              <button class="btn-icon" onclick="exportAllProviders()" title="Export All" id="btn-export-all">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2h10M2 6h10M2 10h10"/><path d="M12 5l-2 2 2 2"/></svg>
+              </button>
+              <button class="btn-icon" onclick="importConfigs()" title="Import">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 1v9M3 6l4 4 4-4"/><path d="M1 11v1a1 1 0 001 1h10a1 1 0 001-1v-1"/></svg>
+              </button>
+            </div>
+            <input type="file" id="import-file" accept=".json,.toml,.env,.yaml,.yml" class="sr-only">
+          </div>
+          <div class="card-body">
+            <div class="saved-list" id="saved-list">
+              <div class="empty-state" id="empty-state">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3">
+                  <rect x="4" y="4" width="24" height="24" rx="3"/>
+                  <path d="M10 16h12M16 10v12" stroke-dasharray="2 2"/>
+                </svg>
+                <p data-i18n="empty_saved">暂无保存的配置</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Model Probe Card -->
+        <section class="card" id="card-probe">
+          <div class="card-header">
+            <div class="card-dot"></div>
+            <h2 class="card-title" data-i18n="probe_title">模型探测</h2>
+          </div>
+          <div class="card-body">
+            <div class="probe-search">
+              <select id="probe-select" class="field-input" onchange="onProbeSelect()">
+                <option value="" data-i18n="probe_placeholder">选择要探测的模型…</option>
+              </select>
+              <button class="btn btn-primary btn-sm" onclick="runProbeAll()" id="btn-probe-all" disabled>
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7h12M9 3l4 4-4 4"/></svg>
+                <span data-i18n="probe_all">全部探测</span>
+              </button>
+            </div>
+            <div class="probe-hint" data-i18n="probe_hint">选择一个模型，查看哪些已保存服务商支持该模型并测试连通性</div>
+            <div id="probe-results"></div>
           </div>
         </section>
       </div>
