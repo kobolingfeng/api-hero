@@ -10,8 +10,25 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Grid background -->
   <div class="grid-bg" aria-hidden="true"></div>
+
+  <!-- Onboarding Overlay -->
+  <div class="onboarding-overlay hidden" id="onboarding-overlay">
+    <div class="onboarding-backdrop" id="onboarding-backdrop"></div>
+    <div class="onboarding-tooltip" id="onboarding-tooltip">
+      <div class="onboarding-step-indicator" id="onboarding-step-indicator"></div>
+      <h3 class="onboarding-title" id="onboarding-title"></h3>
+      <p class="onboarding-desc" id="onboarding-desc"></p>
+      <div class="onboarding-actions">
+        <button class="btn btn-outline btn-sm" id="onboarding-skip" onclick="endOnboarding()">
+          <span data-i18n="onboarding_skip">跳过</span>
+        </button>
+        <button class="btn btn-primary btn-sm" id="onboarding-next" onclick="nextOnboardingStep()">
+          <span data-i18n="onboarding_next">下一步</span>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Header -->
   <header class="header" id="header">
@@ -26,6 +43,13 @@
         <span class="logo-text">API Tester</span>
       </div>
       <nav class="header-nav">
+        <button class="btn-icon" id="btn-guide" onclick="startOnboarding()" title="Guide">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+            <circle cx="8" cy="8" r="6.5"/>
+            <path d="M6 6.5a2 2 0 013.5 1.3c0 1.2-1.5 1.2-1.5 2.2"/>
+            <circle cx="8" cy="12" r="0.5" fill="currentColor"/>
+          </svg>
+        </button>
         <button class="lang-toggle" id="lang-toggle" onclick="toggleLang()" title="Switch Language">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
             <circle cx="8" cy="8" r="6.5"/>
@@ -42,18 +66,21 @@
   </header>
 
   <main class="main">
-    <!-- Hero section -->
     <section class="hero">
       <h1 class="hero-title" data-i18n="hero_title">测试你的 OpenAI 兼容 API</h1>
-      <p class="hero-desc" data-i18n="hero_desc">输入 Base URL 和 API Key，一键验证连通性。纯静态页面，密钥不离开浏览器。</p>
+      <p class="hero-desc" data-i18n="hero_desc">输入 Base URL 和 API Key，一键验证连通性。纯静态页面，密钥加密存储，不离开浏览器。</p>
+      <!-- Security badge -->
+      <div class="security-badge">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2">
+          <path d="M6 1L2 3v3c0 2.5 1.7 4.5 4 5 2.3-.5 4-2.5 4-5V3L6 1z"/>
+          <path d="M4.5 6l1 1 2-2"/>
+        </svg>
+        <span data-i18n="security_badge">AES-GCM 加密存储 · 密钥不离开浏览器</span>
+      </div>
     </section>
 
-    <!-- Layout -->
     <div class="layout">
-
-      <!-- Left column: Config + Saved -->
       <div class="col-left">
-
         <!-- Config Card -->
         <section class="card" id="card-config">
           <div class="card-header">
@@ -61,12 +88,16 @@
             <h2 class="card-title" data-i18n="config_title">接口配置</h2>
           </div>
           <div class="card-body">
-            <div class="field">
+            <div class="field" id="field-base-url">
               <label class="field-label" for="base-url" data-i18n="label_base_url">Base URL</label>
               <input type="url" id="base-url" class="field-input" placeholder="https://api.openai.com/v1" value="https://api.openai.com/v1">
+              <p class="field-hint" data-i18n="hint_base_url">API 提供商的接口地址，通常以 /v1 结尾</p>
             </div>
-            <div class="field">
-              <label class="field-label" for="api-key" data-i18n="label_api_key">API Key</label>
+            <div class="field" id="field-api-key">
+              <label class="field-label" for="api-key">
+                <span data-i18n="label_api_key">API Key</span>
+                <span class="field-label-badge" data-i18n="label_encrypted">已加密</span>
+              </label>
               <div class="field-input-wrap">
                 <input type="password" id="api-key" class="field-input" placeholder="sk-...">
                 <button class="field-btn-icon" id="toggle-key" title="Toggle">
@@ -76,21 +107,25 @@
                   </svg>
                 </button>
               </div>
+              <p class="field-hint" data-i18n="hint_api_key">你的 API 密钥，保存时会使用 AES-GCM 加密</p>
             </div>
-            <div class="field-row">
-              <div class="field" style="flex:1">
-                <label class="field-label" for="model-name" data-i18n="label_model">模型</label>
-                <input type="text" id="model-name" class="field-input" placeholder="gpt-4o" value="gpt-3.5-turbo">
-              </div>
+            <div class="field" id="field-model">
+              <label class="field-label" for="model-name" data-i18n="label_model">模型</label>
+              <input type="text" id="model-name" class="field-input" placeholder="gpt-4o" value="gpt-3.5-turbo">
+              <p class="field-hint" data-i18n="hint_model">要测试的模型名称，如 gpt-4o、gpt-3.5-turbo</p>
             </div>
-            <div class="field">
+            <div class="field" id="field-prompt">
               <label class="field-label" for="test-prompt" data-i18n="label_prompt">测试 Prompt</label>
               <textarea id="test-prompt" class="field-input field-textarea" rows="2" placeholder="Say hello...">Say hello!</textarea>
             </div>
-            <div class="card-actions">
+            <div class="card-actions" id="card-actions">
               <button class="btn btn-primary" id="btn-test" onclick="testAPI()">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7h12M9 3l4 4-4 4"/></svg>
                 <span data-i18n="btn_test">测试连接</span>
+              </button>
+              <button class="btn btn-outline" id="btn-ping" onclick="pingAPI()">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="M7 4v3l2 2"/></svg>
+                <span data-i18n="btn_ping">连通检测</span>
               </button>
               <button class="btn btn-outline" id="btn-save" onclick="saveConfig()">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 13H3a1 1 0 01-1-1V2a1 1 0 011-1h6l3 3v8a1 1 0 01-1 1z"/><path d="M9 1v3h3M5 9h4"/></svg>
@@ -126,9 +161,7 @@
         </section>
       </div>
 
-      <!-- Right column: Results + Export -->
       <div class="col-right">
-
         <!-- Results Card -->
         <section class="card" id="card-results">
           <div class="card-header">
@@ -140,7 +173,6 @@
             </div>
           </div>
           <div class="card-body">
-            <!-- Idle -->
             <div class="result-state" id="state-idle">
               <div class="idle-visual">
                 <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1" opacity="0.25">
@@ -150,14 +182,13 @@
               </div>
               <p class="idle-text" data-i18n="idle_text">等待测试…</p>
             </div>
-            <!-- Loading -->
             <div class="result-state hidden" id="state-loading">
-              <div class="loader">
-                <div class="loader-ring"></div>
-              </div>
+              <div class="loader"><div class="loader-ring"></div></div>
               <p class="loading-text" data-i18n="loading_text">正在连接…</p>
             </div>
-            <!-- Success -->
+            <div class="result-state hidden" id="state-ping">
+              <div class="ping-results" id="ping-results"></div>
+            </div>
             <div class="result-state hidden" id="state-success">
               <div class="result-indicator success-indicator">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 10l4 4 8-8"/></svg>
@@ -165,7 +196,6 @@
               </div>
               <pre class="result-output" id="result-output"></pre>
             </div>
-            <!-- Error -->
             <div class="result-state hidden" id="state-error">
               <div class="result-indicator error-indicator">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 5l10 10M15 5L5 15"/></svg>
@@ -173,7 +203,6 @@
               </div>
               <pre class="result-output error-output" id="error-output"></pre>
             </div>
-            <!-- Stats -->
             <div class="stats-row hidden" id="stats-row">
               <div class="stat">
                 <span class="stat-label" data-i18n="stat_latency">延迟</span>
@@ -200,38 +229,14 @@
           <div class="card-body">
             <p class="export-desc" data-i18n="export_desc">将当前配置导出为各平台通用格式</p>
             <div class="export-grid">
-              <button class="export-item" onclick="exportConfig('openai-env')">
-                <span class="export-label">OpenAI .env</span>
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg>
-              </button>
-              <button class="export-item" onclick="exportConfig('openclaw')">
-                <span class="export-label">OpenClaw</span>
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg>
-              </button>
-              <button class="export-item" onclick="exportConfig('codex')">
-                <span class="export-label">Codex CLI</span>
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg>
-              </button>
-              <button class="export-item" onclick="exportConfig('claude-code')">
-                <span class="export-label">Claude Code</span>
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg>
-              </button>
-              <button class="export-item" onclick="exportConfig('antigravity')">
-                <span class="export-label">Antigravity</span>
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg>
-              </button>
-              <button class="export-item" onclick="exportConfig('curl')">
-                <span class="export-label">cURL</span>
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg>
-              </button>
-              <button class="export-item" onclick="exportConfig('python')">
-                <span class="export-label">Python</span>
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg>
-              </button>
-              <button class="export-item" onclick="exportConfig('json')">
-                <span class="export-label">JSON</span>
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg>
-              </button>
+              <button class="export-item" onclick="exportConfig('openai-env')"><span class="export-label">OpenAI .env</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
+              <button class="export-item" onclick="exportConfig('openclaw')"><span class="export-label">OpenClaw</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
+              <button class="export-item" onclick="exportConfig('codex')"><span class="export-label">Codex CLI</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
+              <button class="export-item" onclick="exportConfig('claude-code')"><span class="export-label">Claude Code</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
+              <button class="export-item" onclick="exportConfig('antigravity')"><span class="export-label">Antigravity</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
+              <button class="export-item" onclick="exportConfig('curl')"><span class="export-label">cURL</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
+              <button class="export-item" onclick="exportConfig('python')"><span class="export-label">Python</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
+              <button class="export-item" onclick="exportConfig('json')"><span class="export-label">JSON</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
             </div>
           </div>
         </section>
@@ -264,12 +269,10 @@
     </div>
   </div>
 
-  <!-- Toast -->
   <div class="toast" id="toast"></div>
 
-  <!-- Footer -->
   <footer class="footer">
-    <p data-i18n="footer_text">纯静态 · 密钥本地存储 · 无服务器 · 无追踪</p>
+    <p data-i18n="footer_text">纯静态 · AES-GCM 加密 · 无服务器 · 无追踪</p>
     <p class="footer-sub">
       <span data-i18n="footer_star">喜欢的话点个</span> <a href="https://github.com/kobolingfeng/api-hero" target="_blank" rel="noopener">⭐ Star</a>
     </p>
