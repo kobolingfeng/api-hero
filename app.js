@@ -267,9 +267,6 @@ function setupListeners() {
     inp.type = inp.type === 'password' ? 'text' : 'password';
   });
   document.getElementById('import-file').addEventListener('change', handleImportFile);
-  document.getElementById('probe-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') probeModel();
-  });
   document.getElementById('export-modal').addEventListener('click', e => {
     if (e.target === e.currentTarget) closeModal();
   });
@@ -519,6 +516,7 @@ async function saveConfig() {
 //  RENDER PROVIDERS LIST
 // ══════════════════════════════════
 async function renderProviders() {
+  refreshProbeDropdown(); // keep model dropdown in sync
   const providers = await getProviders();
   const container = document.getElementById('saved-list');
   if (!providers.length) {
@@ -1186,39 +1184,58 @@ function downloadExport() {
 // ══════════════════════════════════
 //  MODEL PROBE
 // ══════════════════════════════════
-let probeData = []; // { providerId, providerName, baseUrl, apiKey, model, status, latency }
+let probeData = [];
 let probeAbort = false;
 
-async function probeModel() {
-  const query = document.getElementById('probe-input').value.trim().toLowerCase();
-  if (!query) { showToast(t('probe_need_input')); return; }
+// Populate the dropdown with all unique models from all providers
+async function refreshProbeDropdown() {
+  const providers = await getProviders();
+  const modelSet = new Set();
+  for (const p of providers) {
+    (p.models || []).forEach(m => modelSet.add(m));
+  }
+  const sorted = [...modelSet].sort();
+  const select = document.getElementById('probe-select');
+  const current = select.value;
+  // Keep the first placeholder option
+  select.innerHTML = `<option value="">${currentLang === 'zh' ? '选择要探测的模型…' : 'Select a model to probe…'}</option>`;
+  sorted.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m; opt.textContent = m;
+    select.appendChild(opt);
+  });
+  if (current && sorted.includes(current)) select.value = current;
+}
+
+// When user selects a model from dropdown
+async function onProbeSelect() {
+  const model = document.getElementById('probe-select').value;
+  const btn = document.getElementById('btn-probe-all');
+  if (!model) {
+    btn.disabled = true;
+    document.getElementById('probe-results').innerHTML = '';
+    probeData = [];
+    return;
+  }
 
   const providers = await getProviders();
-  if (!providers.length) { showToast(t('testall_empty')); return; }
-
-  // Find all providers that have a model matching the query (partial match)
   probeData = [];
   for (const p of providers) {
-    const matches = (p.models || []).filter(m => m.toLowerCase().includes(query));
-    for (const m of matches) {
+    if ((p.models || []).includes(model)) {
       probeData.push({
         providerId: p.id,
         providerName: p.name,
         baseUrl: p.baseUrl,
         apiKey: p._key,
-        model: m,
+        model,
         status: 'wait',
         latency: null
       });
     }
   }
 
+  btn.disabled = probeData.length === 0;
   renderProbeResults();
-
-  if (probeData.length === 0) return;
-
-  // Auto-start probing all
-  await runProbeAll();
 }
 
 function renderProbeResults() {
@@ -1237,20 +1254,17 @@ function renderProbeResults() {
       <div style="display:flex;gap:8px;align-items:center">
         ${okCount > 0 ? `<span style="color:var(--success);font-size:11px;font-weight:600">✓ ${okCount}</span>` : ''}
         ${failCount > 0 ? `<span style="color:var(--error);font-size:11px;font-weight:600">✗ ${failCount}</span>` : ''}
-        <button class="btn btn-outline btn-sm" onclick="runProbeAll()">
-          <svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7h12M9 3l4 4-4 4"/></svg>
-          ${t('probe_all')}
-        </button>
       </div>
     </div>
     ${probeData.map((r, i) => `
       <div class="probe-result-row">
         <div class="probe-result-info">
           <div class="probe-result-name">${esc(r.providerName)}</div>
-          <div class="probe-result-meta">${esc(r.model)} · ${esc(extractHost(r.baseUrl))}</div>
+          <div class="probe-result-meta">${esc(extractHost(r.baseUrl))}</div>
         </div>
         <div class="probe-result-latency">${r.latency ? r.latency + 'ms' : ''}</div>
         <div class="probe-result-status ps-${r.status}">${probeStatusText(r.status)}</div>
+        ${r.status === 'wait' || r.status === 'fail' ? `<button class="btn-icon btn-icon-sm" onclick="runProbeSingle(${i})" title="Probe"><svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7h12M9 3l4 4-4 4"/></svg></button>` : ''}
       </div>
     `).join('')}
   `;
@@ -1259,13 +1273,35 @@ function renderProbeResults() {
 function probeStatusText(s) {
   if (s === 'ok') return '✓ ' + t('probe_ok');
   if (s === 'fail') return '✗ ' + t('probe_fail');
-  if (s === 'run') return '<span class="mini-spinner-sm"></span> ' + t('probe_running');
+  if (s === 'run') return '<span class="mini-spinner-sm"></span>';
   return '○ ' + t('probe_wait');
 }
 
+async function runProbeSingle(index) {
+  const r = probeData[index];
+  if (!r) return;
+  r.status = 'run'; r.latency = null;
+  renderProbeResults();
+
+  try {
+    const base = normalizeBase(r.baseUrl);
+    const t0 = performance.now();
+    const res = await proxyFetch(`${base}/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${r.apiKey}` },
+      body: JSON.stringify({ model: r.model, messages: [{ role: 'user', content: 'Hi' }], max_tokens: 1 })
+    });
+    r.latency = Math.round(performance.now() - t0);
+    r.status = res.ok ? 'ok' : 'fail';
+  } catch {
+    r.status = 'fail';
+  }
+  renderProbeResults();
+}
+
 async function runProbeAll() {
+  if (probeData.length === 0) return;
   probeAbort = false;
-  // Reset all to wait
   probeData.forEach(r => { r.status = 'wait'; r.latency = null; });
   renderProbeResults();
 
@@ -1280,14 +1316,9 @@ async function runProbeAll() {
       const res = await proxyFetch(`${base}/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${probeData[i].apiKey}` },
-        body: JSON.stringify({
-          model: probeData[i].model,
-          messages: [{ role: 'user', content: 'Hi' }],
-          max_tokens: 1
-        })
+        body: JSON.stringify({ model: probeData[i].model, messages: [{ role: 'user', content: 'Hi' }], max_tokens: 1 })
       });
-      const elapsed = Math.round(performance.now() - t0);
-      probeData[i].latency = elapsed;
+      probeData[i].latency = Math.round(performance.now() - t0);
       probeData[i].status = res.ok ? 'ok' : 'fail';
     } catch {
       probeData[i].status = 'fail';
