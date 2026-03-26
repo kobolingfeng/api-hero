@@ -42,11 +42,8 @@
 
 如果觉得有用，请作者喝杯咖啡 ☕
 
-| 微信赞赏码 | 链动小铺 |
-|:---:|:---:|
-| <img src="docs/wechat.png" width="200"> | <img src="docs/ldxp.png" width="200"> |
+<img src="docs/wechat.png" width="200">
 
-- 🔗 [链动小铺](https://pay.ldxp.cn/item/gwd2qo)
 - 💳 [PayPal](https://paypal.me/koboling)
 
 ## License

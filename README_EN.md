@@ -43,7 +43,6 @@ Visit the live demo, or open `index.html` locally.
 If you find this useful, buy me a coffee ☕
 
 - 💳 [PayPal](https://paypal.me/koboling)
-- 🔗 [链动小铺](https://pay.ldxp.cn/item/gwd2qo)
 
 ## License
 
