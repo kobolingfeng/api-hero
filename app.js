@@ -260,8 +260,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderProviders();
   setupListeners();
   loadLastUsed();
-  // Init proxy toggle
-  document.getElementById('proxy-toggle-input').checked = useProxy;
   if (!localStorage.getItem('api-tester-onboarded')) {
     setTimeout(() => startOnboarding(), 600);
   }
@@ -425,23 +423,10 @@ function normalizeBase(url) {
 
 function extractHost(url) { try { return new URL(url).hostname; } catch { return 'provider'; } }
 
-// ══════════════════════════════════
-//  PROXY FETCH (bypass CORS)
-// ══════════════════════════════════
-// Proxy toggle — defaults OFF, user enables if CORS blocks them
-let useProxy = localStorage.getItem('api-tester-proxy') === 'true';
-
+// Always use proxy when deployed (relay services don't support CORS)
 function getProxyUrl() {
-  if (!useProxy) return null; // direct requests from user's browser
-  return '/api/proxy';
-}
-
-function toggleProxy(checked) {
-  useProxy = checked;
-  localStorage.setItem('api-tester-proxy', checked ? 'true' : 'false');
-  showToast(checked
-    ? (currentLang === 'zh' ? '已开启 CORS 代理，请求将通过服务器中转' : 'CORS proxy enabled')
-    : (currentLang === 'zh' ? '已关闭 CORS 代理，请求直接从浏览器发出' : 'CORS proxy disabled, direct requests'));
+  if (location.protocol === 'https:') return '/api/proxy';
+  return null;
 }
 
 async function proxyFetch(url, options = {}) {
