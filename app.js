@@ -425,8 +425,8 @@ function extractHost(url) { try { return new URL(url).hostname; } catch { return
 // When deployed on Netlify, use the serverless proxy function
 // When running locally (file://), try direct fetch first, then proxy
 function getProxyUrl() {
-  if (location.hostname && location.hostname !== '') {
-    return '/.netlify/functions/proxy';
+  if (location.protocol === 'https:' || (location.hostname && location.hostname !== 'localhost' && location.hostname !== '')) {
+    return '/api/proxy';
   }
   return null; // local file, no proxy available
 }
