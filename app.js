@@ -288,10 +288,14 @@ function setupListeners() {
       dd.classList.add('hidden');
     }
   });
-  // Smart paste: detect config blocks on any field
+  // Smart paste: detect config blocks on any field (paste + input fallback)
+  let smartPasteTimer = null;
   ['base-url', 'api-key', 'model-name'].forEach(id => {
-    document.getElementById(id).addEventListener('paste', e => {
-      setTimeout(() => smartPaste(id), 0);
+    const el = document.getElementById(id);
+    el.addEventListener('paste', () => setTimeout(() => smartPaste(id), 0));
+    el.addEventListener('input', () => {
+      clearTimeout(smartPasteTimer);
+      smartPasteTimer = setTimeout(() => smartPaste(id), 300);
     });
   });
 }
