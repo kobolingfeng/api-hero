@@ -38,6 +38,13 @@ Visit the live demo, or open `index.html` locally.
 - API keys are AES-GCM encrypted and stored in localStorage
 - No data is collected or uploaded
 
+## Sponsor
+
+If you find this useful, buy me a coffee ☕
+
+- 💳 [PayPal](https://paypal.me/koboling)
+- 🔗 [链动小铺](https://pay.ldxp.cn/item/gwd2qo)
+
 ## License
 
 MIT

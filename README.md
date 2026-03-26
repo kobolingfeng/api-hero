@@ -38,6 +38,17 @@
 - API Key 使用 AES-GCM 加密后存于 localStorage
 - 不收集、不上传任何用户数据
 
+## 赞助
+
+如果觉得有用，请作者喝杯咖啡 ☕
+
+| 微信赞赏码 | 链动小铺 |
+|:---:|:---:|
+| <img src="docs/wechat.png" width="200"> | <img src="docs/ldxp.png" width="200"> |
+
+- 🔗 [链动小铺](https://pay.ldxp.cn/item/gwd2qo)
+- 💳 [PayPal](https://paypal.me/koboling)
+
 ## License
 
 MIT
