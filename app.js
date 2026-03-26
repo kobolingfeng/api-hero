@@ -1,72 +1,148 @@
 /* =========================================
-   API HERO - Main Application Logic
-   Pure Static, No Server Required
+   API Tester — Application Logic
+   Pure Static, No Server
    ========================================= */
 
-const STORAGE_KEY = 'api-hero-configs';
+const STORAGE_KEY = 'api-tester-configs';
 let currentExportData = { content: '', filename: '' };
+let currentLang = 'zh';
+
+// ── i18n ──
+const i18n = {
+  zh: {
+    hero_title: '测试你的 OpenAI 兼容 API',
+    hero_desc: '输入 Base URL 和 API Key，一键验证连通性。纯静态页面，密钥不离开浏览器。',
+    config_title: '接口配置',
+    label_base_url: 'Base URL',
+    label_api_key: 'API Key',
+    label_model: '模型',
+    label_prompt: '测试 Prompt',
+    btn_test: '测试连接',
+    btn_save: '保存',
+    btn_copy: '复制',
+    btn_download: '下载',
+    saved_title: '已保存',
+    empty_saved: '暂无保存的配置',
+    result_title: '测试结果',
+    idle_text: '等待测试…',
+    loading_text: '正在连接…',
+    success_text: '连接成功',
+    error_text: '连接失败',
+    stat_latency: '延迟',
+    stat_tokens: 'Tokens',
+    stat_model: '模型',
+    export_title: '导出配置',
+    export_desc: '将当前配置导出为各平台通用格式',
+    footer_text: '纯静态 · 密钥本地存储 · 无服务器 · 无追踪',
+    footer_star: '喜欢的话点个',
+    toast_saved: '✓ 已保存',
+    toast_deleted: '✓ 已删除',
+    toast_loaded: '✓ 已加载',
+    toast_copied: '✓ 已复制',
+    toast_imported: '✓ 导入成功',
+    toast_import_fail: '✗ 导入失败',
+    toast_need_url: '请填写 Base URL',
+    toast_need_key: '请填写 API Key',
+    toast_need_model: '请填写模型名',
+    toast_need_config: '请至少填写 Base URL 和 API Key',
+    prompt_name: '为该配置命名：',
+    confirm_delete: '确认删除此配置？',
+    status_ok: '正常',
+    status_fail: '失败',
+  },
+  en: {
+    hero_title: 'Test Your OpenAI-Compatible API',
+    hero_desc: 'Enter your Base URL and API Key, one click to verify connectivity. Fully static, keys never leave your browser.',
+    config_title: 'CONFIGURATION',
+    label_base_url: 'Base URL',
+    label_api_key: 'API Key',
+    label_model: 'Model',
+    label_prompt: 'Test Prompt',
+    btn_test: 'Test',
+    btn_save: 'Save',
+    btn_copy: 'Copy',
+    btn_download: 'Download',
+    saved_title: 'SAVED',
+    empty_saved: 'No saved configurations',
+    result_title: 'RESULTS',
+    idle_text: 'Waiting for test…',
+    loading_text: 'Connecting…',
+    success_text: 'Connected',
+    error_text: 'Failed',
+    stat_latency: 'Latency',
+    stat_tokens: 'Tokens',
+    stat_model: 'Model',
+    export_title: 'EXPORT',
+    export_desc: 'Export current config for various platforms',
+    footer_text: 'Static · Local Storage · No Server · No Tracking',
+    footer_star: 'Like it? Star on',
+    toast_saved: '✓ Saved',
+    toast_deleted: '✓ Deleted',
+    toast_loaded: '✓ Loaded',
+    toast_copied: '✓ Copied',
+    toast_imported: '✓ Imported',
+    toast_import_fail: '✗ Import failed',
+    toast_need_url: 'Base URL required',
+    toast_need_key: 'API Key required',
+    toast_need_model: 'Model required',
+    toast_need_config: 'Need at least Base URL and API Key',
+    prompt_name: 'Name this config:',
+    confirm_delete: 'Delete this config?',
+    status_ok: 'OK',
+    status_fail: 'FAIL',
+  }
+};
+
+function t(key) { return i18n[currentLang][key] || key; }
+
+function applyLang() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (i18n[currentLang][key]) el.textContent = i18n[currentLang][key];
+  });
+  document.getElementById('lang-label').textContent = currentLang === 'zh' ? 'EN' : '中文';
+  document.documentElement.lang = currentLang === 'zh' ? 'zh-CN' : 'en';
+  localStorage.setItem('api-tester-lang', currentLang);
+}
+
+function toggleLang() {
+  currentLang = currentLang === 'zh' ? 'en' : 'zh';
+  applyLang();
+  loadSavedConfigs(); // re-render saved list with new language
+}
 
 // ── Init ──
 document.addEventListener('DOMContentLoaded', () => {
+  currentLang = localStorage.getItem('api-tester-lang') || 'zh';
+  applyLang();
   loadSavedConfigs();
-  setupEventListeners();
+  setupListeners();
   loadLastUsed();
 });
 
-function setupEventListeners() {
-  // Toggle API key visibility
+function setupListeners() {
   document.getElementById('toggle-key').addEventListener('click', () => {
     const input = document.getElementById('api-key');
-    const isPassword = input.type === 'password';
-    input.type = isPassword ? 'text' : 'password';
-    document.getElementById('toggle-key').textContent = isPassword ? '🙈' : '👁️';
+    input.type = input.type === 'password' ? 'text' : 'password';
   });
-
-  // Import file handler
   document.getElementById('import-file').addEventListener('change', handleImportFile);
-
-  // Click explosion effect
-  document.addEventListener('click', createClickExplosion);
-
-  // Close modal on overlay click
-  document.getElementById('export-modal').addEventListener('click', (e) => {
+  document.getElementById('export-modal').addEventListener('click', e => {
     if (e.target === e.currentTarget) closeModal();
   });
-
-  // Keyboard shortcut: Escape closes modal
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeModal();
-  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 }
 
-// ── Click Explosion Effect ──
-const SFX_WORDS = ['POW!', 'ZAP!', 'BAM!', 'WHAM!', 'BOOM!', 'KAPOW!', 'CRASH!'];
-function createClickExplosion(e) {
-  if (Math.random() > 0.3) return; // 30% chance
-  const el = document.createElement('div');
-  el.className = 'click-explosion';
-  el.textContent = SFX_WORDS[Math.floor(Math.random() * SFX_WORDS.length)];
-  el.style.left = e.clientX + 'px';
-  el.style.top = e.clientY + 'px';
-  document.getElementById('click-effects').appendChild(el);
-  setTimeout(() => el.remove(), 700);
-}
-
-// ── Toast Notification ──
-function showToast(message) {
-  let toast = document.querySelector('.toast');
-  if (!toast) {
-    toast = document.createElement('div');
-    toast.className = 'toast';
-    document.body.appendChild(toast);
-  }
-  toast.textContent = message;
+// ── Toast ──
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
   toast.classList.add('show');
-  setTimeout(() => toast.classList.remove('show'), 2500);
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.remove('show'), 2200);
 }
 
-// ── Get Current Config ──
-function getCurrentConfig() {
+// ── Config ──
+function getConfig() {
   return {
     baseUrl: document.getElementById('base-url').value.trim(),
     apiKey: document.getElementById('api-key').value.trim(),
@@ -75,485 +151,300 @@ function getCurrentConfig() {
   };
 }
 
-// ── Save Last Used ──
 function saveLastUsed() {
-  const config = getCurrentConfig();
-  localStorage.setItem('api-hero-last', JSON.stringify(config));
+  localStorage.setItem('api-tester-last', JSON.stringify(getConfig()));
 }
 
 function loadLastUsed() {
   try {
-    const last = JSON.parse(localStorage.getItem('api-hero-last'));
-    if (last) {
-      if (last.baseUrl) document.getElementById('base-url').value = last.baseUrl;
-      if (last.apiKey) document.getElementById('api-key').value = last.apiKey;
-      if (last.model) document.getElementById('model-name').value = last.model;
-      if (last.prompt) document.getElementById('test-prompt').value = last.prompt;
+    const d = JSON.parse(localStorage.getItem('api-tester-last'));
+    if (d) {
+      if (d.baseUrl) document.getElementById('base-url').value = d.baseUrl;
+      if (d.apiKey) document.getElementById('api-key').value = d.apiKey;
+      if (d.model) document.getElementById('model-name').value = d.model;
+      if (d.prompt) document.getElementById('test-prompt').value = d.prompt;
     }
-  } catch (e) { /* ignore */ }
+  } catch {}
 }
 
-// ══════════════════════════════════════════
+// ══════════════════════════════════
 //  TEST API
-// ══════════════════════════════════════════
+// ══════════════════════════════════
 async function testAPI() {
-  const config = getCurrentConfig();
-
-  if (!config.baseUrl) { showToast('⚠️ BASE URL is required!'); return; }
-  if (!config.apiKey) { showToast('⚠️ API KEY is required!'); return; }
-  if (!config.model) { showToast('⚠️ MODEL is required!'); return; }
-
+  const c = getConfig();
+  if (!c.baseUrl) { showToast(t('toast_need_url')); return; }
+  if (!c.apiKey) { showToast(t('toast_need_key')); return; }
+  if (!c.model) { showToast(t('toast_need_model')); return; }
   saveLastUsed();
+  showResult('loading');
 
-  // Show testing state
-  showState('testing');
-
-  const startTime = performance.now();
-
+  const t0 = performance.now();
   try {
-    // Normalize base URL
-    let baseUrl = config.baseUrl.replace(/\/+$/, '');
-    if (!baseUrl.endsWith('/v1')) {
-      // Check if it already has a path
-      const url = new URL(baseUrl);
-      if (url.pathname === '/' || url.pathname === '') {
-        baseUrl += '/v1';
-      }
+    let base = c.baseUrl.replace(/\/+$/, '');
+    if (!base.endsWith('/v1')) {
+      try { const u = new URL(base); if (u.pathname === '/' || u.pathname === '') base += '/v1'; } catch {}
     }
 
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    const res = await fetch(`${base}/chat/completions`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey}`
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${c.apiKey}` },
       body: JSON.stringify({
-        model: config.model,
-        messages: [
-          { role: 'user', content: config.prompt || 'Hello!' }
-        ],
+        model: c.model,
+        messages: [{ role: 'user', content: c.prompt || 'Hello!' }],
         max_tokens: 256
       })
     });
 
-    const elapsed = Math.round(performance.now() - startTime);
+    const elapsed = Math.round(performance.now() - t0);
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      let errorMsg = `HTTP ${response.status} ${response.statusText}`;
-      try {
-        const errJson = JSON.parse(errorBody);
-        if (errJson.error) {
-          errorMsg += `\n\n${errJson.error.message || errJson.error.type || JSON.stringify(errJson.error)}`;
-        }
-      } catch {
-        errorMsg += `\n\n${errorBody.substring(0, 500)}`;
-      }
-      showState('error', errorMsg);
+    if (!res.ok) {
+      const txt = await res.text();
+      let msg = `HTTP ${res.status} ${res.statusText}`;
+      try { const j = JSON.parse(txt); if (j.error) msg += '\n' + (j.error.message || JSON.stringify(j.error)); } catch { msg += '\n' + txt.substring(0, 500); }
+      showResult('error', msg, elapsed);
       return;
     }
 
-    const data = await response.json();
-
-    // Extract response content
-    const content = data.choices?.[0]?.message?.content || 'No content in response';
-    const model = data.model || config.model;
-    const totalTokens = data.usage?.total_tokens || '--';
-
-    // Show success
-    showState('success', content);
-
-    // Update stats
-    document.getElementById('stats-bar').classList.remove('hidden');
-    document.getElementById('stat-latency').textContent = `${elapsed}ms`;
-    document.getElementById('stat-tokens').textContent = totalTokens;
-    document.getElementById('stat-model').textContent = model;
-
+    const data = await res.json();
+    const content = data.choices?.[0]?.message?.content || '(empty response)';
+    const model = data.model || c.model;
+    const tokens = data.usage?.total_tokens || '—';
+    showResult('success', content, elapsed, tokens, model);
   } catch (err) {
-    showState('error', `Network Error: ${err.message}\n\nMake sure the API endpoint supports CORS for browser requests.`);
+    showResult('error', `${err.message}\n\nAPI 端点可能不支持浏览器跨域 (CORS) 请求`, Math.round(performance.now() - t0));
   }
 }
 
-function showState(state, content) {
-  const states = ['waiting', 'testing', 'success', 'error'];
-  states.forEach(s => {
-    document.getElementById(`${s}-state`).classList.toggle('hidden', s !== state);
+function showResult(state, content, latency, tokens, model) {
+  ['idle', 'loading', 'success', 'error'].forEach(s => {
+    document.getElementById(`state-${s}`).classList.toggle('hidden', s !== state);
   });
+
+  const badge = document.getElementById('status-badge');
+  const statsRow = document.getElementById('stats-row');
 
   if (state === 'success') {
-    document.getElementById('result-details').textContent = content;
+    document.getElementById('result-output').textContent = content;
+    badge.className = 'status-badge success';
+    badge.classList.remove('hidden');
+    document.getElementById('status-text').textContent = t('status_ok');
+    statsRow.classList.remove('hidden');
+    document.getElementById('stat-latency').textContent = latency + 'ms';
+    document.getElementById('stat-tokens').textContent = tokens;
+    document.getElementById('stat-model').textContent = model;
   } else if (state === 'error') {
-    document.getElementById('error-details').textContent = content;
-    document.getElementById('stats-bar').classList.add('hidden');
+    document.getElementById('error-output').textContent = content;
+    badge.className = 'status-badge error';
+    badge.classList.remove('hidden');
+    document.getElementById('status-text').textContent = t('status_fail');
+    statsRow.classList.add('hidden');
+  } else if (state === 'loading') {
+    badge.classList.add('hidden');
+    statsRow.classList.add('hidden');
   }
 }
 
-// ══════════════════════════════════════════
-//  SAVE / LOAD CONFIGS
-// ══════════════════════════════════════════
-function getSavedConfigs() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-  } catch { return []; }
+// ══════════════════════════════════
+//  SAVE / LOAD
+// ══════════════════════════════════
+function getSaved() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; }
 }
-
-function saveSavedConfigs(configs) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(configs));
-}
+function setSaved(arr) { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); }
 
 function saveConfig() {
-  const config = getCurrentConfig();
-  if (!config.baseUrl || !config.apiKey) {
-    showToast('⚠️ Need at least Base URL and API Key!');
-    return;
-  }
-
-  const name = prompt('💾 Give this hero a name:', extractName(config.baseUrl));
+  const c = getConfig();
+  if (!c.baseUrl || !c.apiKey) { showToast(t('toast_need_config')); return; }
+  const name = prompt(t('prompt_name'), extractHost(c.baseUrl));
   if (!name) return;
-
-  const configs = getSavedConfigs();
-  configs.push({
-    id: Date.now(),
-    name: name,
-    baseUrl: config.baseUrl,
-    apiKey: config.apiKey,
-    model: config.model,
-    createdAt: new Date().toISOString()
-  });
-
-  saveSavedConfigs(configs);
+  const saved = getSaved();
+  saved.push({ id: Date.now(), name, baseUrl: c.baseUrl, apiKey: c.apiKey, model: c.model, ts: new Date().toISOString() });
+  setSaved(saved);
   loadSavedConfigs();
-  showToast('✅ Hero saved to archive!');
+  showToast(t('toast_saved'));
 }
 
-function extractName(url) {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return 'My API';
-  }
-}
+function extractHost(url) { try { return new URL(url).hostname; } catch { return 'config'; } }
 
 function loadSavedConfigs() {
-  const configs = getSavedConfigs();
+  const saved = getSaved();
   const container = document.getElementById('saved-list');
-
-  if (configs.length === 0) {
-    container.innerHTML = `
-      <div class="empty-archive">
-        <p class="archive-empty-text">No saved heroes yet...</p>
-        <p class="archive-hint">Save a config above to build your team!</p>
-      </div>`;
+  if (!saved.length) {
+    container.innerHTML = `<div class="empty-state"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3"><rect x="4" y="4" width="24" height="24" rx="3"/><path d="M10 16h12M16 10v12" stroke-dasharray="2 2"/></svg><p data-i18n="empty_saved">${t('empty_saved')}</p></div>`;
     return;
   }
-
-  container.innerHTML = configs.map(c => `
-    <div class="saved-card" data-id="${c.id}">
-      <div class="saved-card-header">
-        <span class="saved-card-name">${escapeHtml(c.name)}</span>
-        <div class="saved-card-actions">
-          <button class="btn-load" onclick="loadConfig(${c.id})" title="Load">📥</button>
-          <button onclick="deleteConfig(${c.id})" title="Delete">🗑️</button>
-        </div>
+  container.innerHTML = saved.map(s => `
+    <div class="saved-item" onclick="loadConfig(${s.id})">
+      <div class="saved-item-info">
+        <div class="saved-item-name">${esc(s.name)}</div>
+        <div class="saved-item-meta">${esc(s.baseUrl)} · ${esc(s.model || '—')}</div>
       </div>
-      <div class="saved-card-url">${escapeHtml(c.baseUrl)}</div>
-      <div class="saved-card-model">Model: ${escapeHtml(c.model || 'default')}</div>
+      <div class="saved-item-actions" onclick="event.stopPropagation()">
+        <button class="btn-icon" onclick="deleteConfig(${s.id})" title="Delete">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 3h8M4.5 3V2h3v1M3 3v7.5a.5.5 0 00.5.5h5a.5.5 0 00.5-.5V3"/></svg>
+        </button>
+      </div>
     </div>
   `).join('');
 }
 
 function loadConfig(id) {
-  const configs = getSavedConfigs();
-  const config = configs.find(c => c.id === id);
-  if (!config) return;
-
-  document.getElementById('base-url').value = config.baseUrl;
-  document.getElementById('api-key').value = config.apiKey;
-  document.getElementById('model-name').value = config.model || '';
-  showToast(`⚡ Loaded: ${config.name}`);
-  document.getElementById('panel-config').scrollIntoView({ behavior: 'smooth' });
+  const c = getSaved().find(s => s.id === id);
+  if (!c) return;
+  document.getElementById('base-url').value = c.baseUrl;
+  document.getElementById('api-key').value = c.apiKey;
+  document.getElementById('model-name').value = c.model || '';
+  showToast(t('toast_loaded') + ` — ${c.name}`);
 }
 
 function deleteConfig(id) {
-  if (!confirm('Delete this saved config?')) return;
-  const configs = getSavedConfigs().filter(c => c.id !== id);
-  saveSavedConfigs(configs);
+  if (!confirm(t('confirm_delete'))) return;
+  setSaved(getSaved().filter(s => s.id !== id));
   loadSavedConfigs();
-  showToast('🗑️ Config deleted!');
+  showToast(t('toast_deleted'));
 }
 
-// ══════════════════════════════════════════
+// ══════════════════════════════════
 //  IMPORT
-// ══════════════════════════════════════════
-function importConfigs() {
-  document.getElementById('import-file').click();
-}
+// ══════════════════════════════════
+function importConfigs() { document.getElementById('import-file').click(); }
 
 function handleImportFile(e) {
   const file = e.target.files[0];
   if (!file) return;
-
   const reader = new FileReader();
-  reader.onload = (ev) => {
-    const text = ev.target.result;
-    try {
-      parseAndImport(text, file.name);
-    } catch (err) {
-      showToast(`❌ Import failed: ${err.message}`);
-    }
+  reader.onload = ev => {
+    try { parseAndImport(ev.target.result, file.name); }
+    catch (err) { showToast(t('toast_import_fail')); }
   };
   reader.readAsText(file);
-  e.target.value = ''; // Reset
+  e.target.value = '';
 }
 
-function parseAndImport(text, filename) {
-  let config = {};
-
-  if (filename.endsWith('.json')) {
-    const json = JSON.parse(text);
-    // Support various JSON formats
-    config.baseUrl = json.base_url || json.baseUrl || json.OPENAI_BASE_URL || json.api_base || '';
-    config.apiKey = json.api_key || json.apiKey || json.OPENAI_API_KEY || '';
-    config.model = json.model || json.MODEL || json.default_model || '';
-  } else if (filename.endsWith('.env')) {
-    const lines = text.split('\n');
-    lines.forEach(line => {
-      const match = line.match(/^([^#=]+)=(.*)$/);
-      if (match) {
-        const key = match[1].trim();
-        const val = match[2].trim().replace(/^["']|["']$/g, '');
-        if (key.includes('BASE') && key.includes('URL')) config.baseUrl = val;
-        else if (key.includes('API') && key.includes('KEY')) config.apiKey = val;
-        else if (key.includes('MODEL')) config.model = val;
-      }
+function parseAndImport(text, fname) {
+  let cfg = {};
+  if (fname.endsWith('.json')) {
+    const j = JSON.parse(text);
+    cfg.baseUrl = j.base_url || j.baseUrl || j.OPENAI_BASE_URL || j.api_base || '';
+    cfg.apiKey = j.api_key || j.apiKey || j.OPENAI_API_KEY || '';
+    cfg.model = j.model || j.MODEL || j.default_model || '';
+  } else if (fname.endsWith('.env')) {
+    text.split('\n').forEach(line => {
+      const m = line.match(/^([^#=]+)=(.*)$/);
+      if (!m) return;
+      const [, k, v] = [, m[1].trim(), m[2].trim().replace(/^["']|["']$/g, '')];
+      if (k.includes('BASE') && k.includes('URL')) cfg.baseUrl = v;
+      else if (k.includes('API') && k.includes('KEY')) cfg.apiKey = v;
+      else if (k.includes('MODEL')) cfg.model = v;
     });
-  } else if (filename.endsWith('.toml')) {
-    // Simple TOML parser for common patterns
-    const lines = text.split('\n');
-    lines.forEach(line => {
-      const match = line.match(/^\s*(\w+)\s*=\s*"?([^"]*)"?\s*$/);
-      if (match) {
-        const key = match[1].toLowerCase();
-        const val = match[2].trim();
-        if (key.includes('base') || key.includes('url') || key === 'api_base') config.baseUrl = val;
-        else if (key.includes('key') || key === 'api_key') config.apiKey = val;
-        else if (key.includes('model')) config.model = val;
-      }
+  } else if (fname.endsWith('.toml')) {
+    text.split('\n').forEach(line => {
+      const m = line.match(/^\s*(\w+)\s*=\s*"?([^"]*)"?\s*$/);
+      if (!m) return;
+      const k = m[1].toLowerCase(), v = m[2].trim();
+      if (k.includes('base') || k.includes('url')) cfg.baseUrl = v;
+      else if (k.includes('key')) cfg.apiKey = v;
+      else if (k.includes('model')) cfg.model = v;
     });
-  } else if (filename.endsWith('.yaml') || filename.endsWith('.yml')) {
-    const lines = text.split('\n');
-    lines.forEach(line => {
-      const match = line.match(/^\s*(\S+)\s*:\s*(.+)$/);
-      if (match) {
-        const key = match[1].toLowerCase();
-        const val = match[2].trim().replace(/^["']|["']$/g, '');
-        if (key.includes('base') || key.includes('url')) config.baseUrl = val;
-        else if (key.includes('key')) config.apiKey = val;
-        else if (key.includes('model')) config.model = val;
-      }
-    });
-  }
-
-  if (config.baseUrl || config.apiKey) {
-    if (config.baseUrl) document.getElementById('base-url').value = config.baseUrl;
-    if (config.apiKey) document.getElementById('api-key').value = config.apiKey;
-    if (config.model) document.getElementById('model-name').value = config.model;
-    showToast('✅ Config imported!');
   } else {
-    showToast('⚠️ Could not parse config from file');
+    text.split('\n').forEach(line => {
+      const m = line.match(/^\s*(\S+)\s*:\s*(.+)$/);
+      if (!m) return;
+      const k = m[1].toLowerCase(), v = m[2].trim().replace(/^["']|["']$/g, '');
+      if (k.includes('base') || k.includes('url')) cfg.baseUrl = v;
+      else if (k.includes('key')) cfg.apiKey = v;
+      else if (k.includes('model')) cfg.model = v;
+    });
+  }
+  if (cfg.baseUrl || cfg.apiKey) {
+    if (cfg.baseUrl) document.getElementById('base-url').value = cfg.baseUrl;
+    if (cfg.apiKey) document.getElementById('api-key').value = cfg.apiKey;
+    if (cfg.model) document.getElementById('model-name').value = cfg.model;
+    showToast(t('toast_imported'));
+  } else {
+    showToast(t('toast_import_fail'));
   }
 }
 
-// ══════════════════════════════════════════
+// ══════════════════════════════════
 //  EXPORT
-// ══════════════════════════════════════════
+// ══════════════════════════════════
 function exportConfig(format) {
-  const config = getCurrentConfig();
-  if (!config.baseUrl && !config.apiKey) {
-    showToast('⚠️ Enter at least Base URL or API Key first!');
-    return;
-  }
-
-  let content = '';
-  let filename = '';
-  let title = '';
-
-  const baseUrl = config.baseUrl.replace(/\/+$/, '');
+  const c = getConfig();
+  if (!c.baseUrl && !c.apiKey) { showToast(t('toast_need_config')); return; }
+  const base = c.baseUrl.replace(/\/+$/, '');
+  let content = '', filename = '', title = '';
 
   switch (format) {
     case 'openai-env':
-      title = '🌐 OpenAI .env Format';
+      title = 'OpenAI .env';
       filename = '.env';
-      content = `# OpenAI Compatible API Configuration
-OPENAI_API_KEY="${config.apiKey}"
-OPENAI_BASE_URL="${baseUrl}"
-OPENAI_MODEL="${config.model}"`;
+      content = `OPENAI_API_KEY="${c.apiKey}"\nOPENAI_BASE_URL="${base}"\nOPENAI_MODEL="${c.model}"`;
       break;
-
     case 'openclaw':
-      title = '🐾 OpenClaw Config';
+      title = 'OpenClaw';
       filename = 'openclaw_config.json';
-      content = JSON.stringify({
-        provider: "openai-compatible",
-        api_key: config.apiKey,
-        base_url: baseUrl,
-        model: config.model,
-        max_tokens: 4096
-      }, null, 2);
+      content = JSON.stringify({ provider: 'openai-compatible', api_key: c.apiKey, base_url: base, model: c.model, max_tokens: 4096 }, null, 2);
       break;
-
     case 'codex':
-      title = '💻 Codex CLI Config';
+      title = 'Codex CLI';
       filename = 'codex_config.toml';
-      content = `# Codex CLI Configuration
-# Place at ~/.codex/config.toml or set env vars
-
-[model]
-name = "${config.model}"
-
-[provider]
-type = "openai"
-api_key = "${config.apiKey}"
-base_url = "${baseUrl}"
-
-# Environment variables alternative:
-# OPENAI_API_KEY="${config.apiKey}"
-# OPENAI_BASE_URL="${baseUrl}"
-# OPENAI_MODEL="${config.model}"`;
+      content = `[model]\nname = "${c.model}"\n\n[provider]\ntype = "openai"\napi_key = "${c.apiKey}"\nbase_url = "${base}"`;
       break;
-
     case 'claude-code':
-      title = '🧠 Claude Code Config';
-      filename = 'claude_code_config.json';
-      content = `# Claude Code with OpenAI-compatible API
-# Set these environment variables:
-
-OPENAI_API_KEY="${config.apiKey}"
-OPENAI_BASE_URL="${baseUrl}"
-
-# Or use claude code settings:
-# claude config set --global model "${config.model}"
-# claude config set --global provider "openai"
-
-# JSON config (~/.claude/settings.json):
-${JSON.stringify({
-  model: config.model,
-  provider: "openai",
-  openaiApiKey: config.apiKey,
-  openaiBaseUrl: baseUrl
-}, null, 2)}`;
+      title = 'Claude Code';
+      filename = 'claude_code.env';
+      content = `OPENAI_API_KEY="${c.apiKey}"\nOPENAI_BASE_URL="${base}"\n\n# claude config set --global model "${c.model}"\n# claude config set --global provider "openai"`;
       break;
-
     case 'antigravity':
-      title = '🚀 Antigravity / Gemini Config';
+      title = 'Antigravity';
       filename = 'antigravity_config.json';
-      content = JSON.stringify({
-        provider: "openai-compatible",
-        api_key: config.apiKey,
-        base_url: baseUrl,
-        model: config.model,
-        settings: {
-          temperature: 0.7,
-          max_tokens: 4096
-        }
-      }, null, 2);
+      content = JSON.stringify({ provider: 'openai-compatible', api_key: c.apiKey, base_url: base, model: c.model, settings: { temperature: 0.7, max_tokens: 4096 } }, null, 2);
       break;
-
     case 'curl':
-      title = '📟 cURL Command';
+      title = 'cURL';
       filename = 'test_api.sh';
-      content = `#!/bin/bash
-# Test OpenAI-compatible API with cURL
-
-curl "${baseUrl}/chat/completions" \\
-  -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer ${config.apiKey}" \\
-  -d '{
-    "model": "${config.model}",
-    "messages": [
-      {"role": "user", "content": "${(config.prompt || 'Hello!').replace(/"/g, '\\"')}"}
-    ],
-    "max_tokens": 256
-  }'`;
+      content = `curl "${base}/chat/completions" \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: Bearer ${c.apiKey}" \\\n  -d '{\n    "model": "${c.model}",\n    "messages": [{"role":"user","content":"${(c.prompt||'Hello!').replace(/"/g,'\\"')}"}],\n    "max_tokens": 256\n  }'`;
       break;
-
     case 'python':
-      title = '🐍 Python Script';
+      title = 'Python';
       filename = 'test_api.py';
-      content = `#!/usr/bin/env python3
-"""Test OpenAI-compatible API"""
-
-from openai import OpenAI
-
-client = OpenAI(
-    api_key="${config.apiKey}",
-    base_url="${baseUrl}"
-)
-
-response = client.chat.completions.create(
-    model="${config.model}",
-    messages=[
-        {"role": "user", "content": "${(config.prompt || 'Hello!').replace(/"/g, '\\"')}"}
-    ],
-    max_tokens=256
-)
-
-print(response.choices[0].message.content)
-print(f"Model: {response.model}")
-print(f"Tokens: {response.usage.total_tokens}")`;
+      content = `from openai import OpenAI\n\nclient = OpenAI(\n    api_key="${c.apiKey}",\n    base_url="${base}"\n)\n\nres = client.chat.completions.create(\n    model="${c.model}",\n    messages=[{"role":"user","content":"${(c.prompt||'Hello!').replace(/"/g,'\\"')}"}],\n    max_tokens=256\n)\nprint(res.choices[0].message.content)`;
       break;
-
     case 'json':
-      title = '📋 JSON Config';
+      title = 'JSON';
       filename = 'api_config.json';
-      content = JSON.stringify({
-        base_url: baseUrl,
-        api_key: config.apiKey,
-        model: config.model,
-        created_at: new Date().toISOString()
-      }, null, 2);
+      content = JSON.stringify({ base_url: base, api_key: c.apiKey, model: c.model, created_at: new Date().toISOString() }, null, 2);
       break;
   }
-
   currentExportData = { content, filename };
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-code').textContent = content;
   document.getElementById('export-modal').classList.remove('hidden');
 }
 
-function closeModal() {
-  document.getElementById('export-modal').classList.add('hidden');
-}
+function closeModal() { document.getElementById('export-modal').classList.add('hidden'); }
 
 function copyExport() {
-  navigator.clipboard.writeText(currentExportData.content).then(() => {
-    showToast('📋 Copied to clipboard!');
-  }).catch(() => {
-    // Fallback
-    const textarea = document.createElement('textarea');
-    textarea.value = currentExportData.content;
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand('copy');
-    document.body.removeChild(textarea);
-    showToast('📋 Copied!');
+  navigator.clipboard.writeText(currentExportData.content).then(() => showToast(t('toast_copied'))).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = currentExportData.content;
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    showToast(t('toast_copied'));
   });
 }
 
 function downloadExport() {
   const blob = new Blob([currentExportData.content], { type: 'text/plain' });
-  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
+  a.href = URL.createObjectURL(blob);
   a.download = currentExportData.filename;
   a.click();
-  URL.revokeObjectURL(url);
-  showToast(`💾 Downloaded: ${currentExportData.filename}`);
+  URL.revokeObjectURL(a.href);
 }
 
-// ── Utility ──
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
 }

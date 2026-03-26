@@ -1,53 +1,33 @@
-# ⚡ API HERO — OpenAI Compatible API Tester
+# API Tester
 
-> 漫画风格的 OpenAI 兼容 API 测试工具。纯静态页面，零服务器，零追踪。
+> 测试你的 OpenAI 兼容 API 是否可用。纯静态页面，密钥不离开浏览器。
 
-![Comic Style](https://img.shields.io/badge/Style-Comic%20Book-E23636?style=for-the-badge)
-![Static](https://img.shields.io/badge/Type-Pure%20Static-1E90FF?style=for-the-badge)
-![License](https://img.shields.io/badge/License-MIT-FFD700?style=for-the-badge)
+🌐 **在线使用**：[https://api-hero-tester.netlify.app](https://api-hero-tester.netlify.app)
 
-## 🦸 功能
+## 功能
 
-- **🔑 API 测试** — 输入 Base URL + API Key + Model，一键测试 OpenAI 兼容 API 是否可用
-- **💾 本地存储** — 自动记住你使用过的 API 配置（localStorage，不上传任何数据）
-- **📤 多平台导出** — 一键导出配置到：
-  - OpenAI `.env`
-  - OpenClaw
-  - Codex CLI
-  - Claude Code
-  - Antigravity
-  - cURL
-  - Python
-  - JSON
-- **📥 导入** — 支持从 `.json` / `.env` / `.toml` / `.yaml` 文件导入配置
-- **🎨 漫画书 UI** — 致敬 Jack Kirby & Stan Lee 时代的漫威漫画风格
+- **API 连通测试** — 输入 Base URL + API Key + Model，一键验证
+- **本地存储** — 自动记住你的配置（localStorage），不上传任何数据
+- **多平台导出** — 一键导出配置到 OpenAI .env / OpenClaw / Codex CLI / Claude Code / Antigravity / cURL / Python / JSON
+- **导入配置** — 支持从 `.json` / `.env` / `.toml` / `.yaml` 文件导入
+- **中英双语** — 默认中文，右上角可切换英文
 
-## 🚀 使用
+## 使用
 
-直接打开 `index.html` 即可使用，或访问在线部署版本。
+直接打开 `index.html`，或访问上面的在线地址。
 
-**注意**：部分 API 端点可能不支持浏览器直接访问（CORS 限制）。如果遇到网络错误，请确认你的 API 支持跨域请求。
+> 部分 API 端点可能不支持浏览器跨域请求（CORS），遇到网络错误时请确认 API 是否支持跨域。
 
-## 📂 项目结构
+## 隐私
 
-```
-├── index.html    # 主页面
-├── style.css     # 漫画书风格样式
-├── app.js        # 应用逻辑
-└── README.md     # 你正在看的这个
-```
-
-## 🔒 隐私
-
-- ✅ 纯静态页面，**没有任何服务器**
-- ✅ 所有数据存储在浏览器 localStorage
-- ✅ API Key 不会被发送到任何第三方
-- ✅ 零追踪，零分析
-
-## ⭐ 喜欢的话
-
-点个 Star 支持一下！
+- 纯静态，没有服务器
+- 所有数据存于 localStorage
+- API Key 不会发送到任何第三方
 
 ## License
 
 MIT
+
+---
+
+⭐ 喜欢的话点个 Star
