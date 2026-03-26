@@ -95,6 +95,18 @@ const i18n = {
     provider_models_count: '个模型',
     provider_no_models: '尚未获取模型',
     provider_refresh: '刷新模型列表',
+    probe_title: '模型探测',
+    probe_search: '搜索',
+    probe_placeholder: '输入模型名称，如 gpt-4o, claude-3...',
+    probe_hint: '搜索指定模型，查看哪些已保存服务商支持该模型并测试连通性',
+    probe_no_match: '未在任何服务商中找到匹配模型',
+    probe_found: '个服务商匹配',
+    probe_all: '全部探测',
+    probe_ok: '通',
+    probe_fail: '不通',
+    probe_wait: '待测',
+    probe_running: '探测中…',
+    probe_need_input: '请输入模型名称',
     onboard: [
       { title: '👋 欢迎使用 API Tester', desc: '这是一个纯静态的 OpenAI 兼容 API 测试工具。你的 API Key 使用 AES-GCM 加密存储在浏览器中，不会发送到任何第三方服务器。\n\n让我带你快速了解各个功能。' },
       { title: '① 填写 Base URL', desc: 'API 提供商给你的接口地址。通常格式为 https://xxx.com/v1 。如果不确定，可以先试试填入提供商给的地址。', target: 'field-base-url' },
@@ -186,6 +198,18 @@ const i18n = {
     provider_models_count: ' models',
     provider_no_models: 'Models not fetched',
     provider_refresh: 'Refresh model list',
+    probe_title: 'Model Probe',
+    probe_search: 'Search',
+    probe_placeholder: 'Enter model name, e.g. gpt-4o, claude-3...',
+    probe_hint: 'Search a model across all saved providers and test connectivity',
+    probe_no_match: 'No matching model found in any provider',
+    probe_found: ' providers match',
+    probe_all: 'Probe All',
+    probe_ok: 'OK',
+    probe_fail: 'Fail',
+    probe_wait: 'Wait',
+    probe_running: 'Probing…',
+    probe_need_input: 'Enter a model name',
     onboard: [
       { title: '👋 Welcome to API Tester', desc: 'A fully static OpenAI-compatible API testing tool. Your API Key is encrypted with AES-GCM and stored only in your browser.\n\nLet me walk you through the features.' },
       { title: '① Base URL', desc: 'The endpoint URL from your API provider. Usually something like https://api.openai.com/v1. If unsure, paste the URL your provider gave you.', target: 'field-base-url' },
@@ -205,6 +229,10 @@ function applyLang() {
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     if (i18n[currentLang][key]) el.textContent = i18n[currentLang][key];
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (i18n[currentLang][key]) el.placeholder = i18n[currentLang][key];
   });
   document.getElementById('lang-label').textContent = currentLang === 'zh' ? 'EN' : '中文';
   document.documentElement.lang = currentLang === 'zh' ? 'zh-CN' : 'en';
@@ -239,6 +267,9 @@ function setupListeners() {
     inp.type = inp.type === 'password' ? 'text' : 'password';
   });
   document.getElementById('import-file').addEventListener('change', handleImportFile);
+  document.getElementById('probe-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') probeModel();
+  });
   document.getElementById('export-modal').addEventListener('click', e => {
     if (e.target === e.currentTarget) closeModal();
   });
@@ -1150,6 +1181,119 @@ function downloadExport() {
   const blob = new Blob([currentExportData.content], { type: 'text/plain' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = currentExportData.filename; a.click(); URL.revokeObjectURL(a.href);
+}
+
+// ══════════════════════════════════
+//  MODEL PROBE
+// ══════════════════════════════════
+let probeData = []; // { providerId, providerName, baseUrl, apiKey, model, status, latency }
+let probeAbort = false;
+
+async function probeModel() {
+  const query = document.getElementById('probe-input').value.trim().toLowerCase();
+  if (!query) { showToast(t('probe_need_input')); return; }
+
+  const providers = await getProviders();
+  if (!providers.length) { showToast(t('testall_empty')); return; }
+
+  // Find all providers that have a model matching the query (partial match)
+  probeData = [];
+  for (const p of providers) {
+    const matches = (p.models || []).filter(m => m.toLowerCase().includes(query));
+    for (const m of matches) {
+      probeData.push({
+        providerId: p.id,
+        providerName: p.name,
+        baseUrl: p.baseUrl,
+        apiKey: p._key,
+        model: m,
+        status: 'wait',
+        latency: null
+      });
+    }
+  }
+
+  renderProbeResults();
+
+  if (probeData.length === 0) return;
+
+  // Auto-start probing all
+  await runProbeAll();
+}
+
+function renderProbeResults() {
+  const container = document.getElementById('probe-results');
+  if (probeData.length === 0) {
+    container.innerHTML = `<div class="probe-no-match">${t('probe_no_match')}</div>`;
+    return;
+  }
+
+  const okCount = probeData.filter(r => r.status === 'ok').length;
+  const failCount = probeData.filter(r => r.status === 'fail').length;
+
+  container.innerHTML = `
+    <div class="probe-result-header">
+      <span class="probe-result-count">${probeData.length} ${t('probe_found')}</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        ${okCount > 0 ? `<span style="color:var(--success);font-size:11px;font-weight:600">✓ ${okCount}</span>` : ''}
+        ${failCount > 0 ? `<span style="color:var(--error);font-size:11px;font-weight:600">✗ ${failCount}</span>` : ''}
+        <button class="btn btn-outline btn-sm" onclick="runProbeAll()">
+          <svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7h12M9 3l4 4-4 4"/></svg>
+          ${t('probe_all')}
+        </button>
+      </div>
+    </div>
+    ${probeData.map((r, i) => `
+      <div class="probe-result-row">
+        <div class="probe-result-info">
+          <div class="probe-result-name">${esc(r.providerName)}</div>
+          <div class="probe-result-meta">${esc(r.model)} · ${esc(extractHost(r.baseUrl))}</div>
+        </div>
+        <div class="probe-result-latency">${r.latency ? r.latency + 'ms' : ''}</div>
+        <div class="probe-result-status ps-${r.status}">${probeStatusText(r.status)}</div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function probeStatusText(s) {
+  if (s === 'ok') return '✓ ' + t('probe_ok');
+  if (s === 'fail') return '✗ ' + t('probe_fail');
+  if (s === 'run') return '<span class="mini-spinner-sm"></span> ' + t('probe_running');
+  return '○ ' + t('probe_wait');
+}
+
+async function runProbeAll() {
+  probeAbort = false;
+  // Reset all to wait
+  probeData.forEach(r => { r.status = 'wait'; r.latency = null; });
+  renderProbeResults();
+
+  for (let i = 0; i < probeData.length; i++) {
+    if (probeAbort) break;
+    probeData[i].status = 'run';
+    renderProbeResults();
+
+    try {
+      const base = normalizeBase(probeData[i].baseUrl);
+      const t0 = performance.now();
+      const res = await proxyFetch(`${base}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${probeData[i].apiKey}` },
+        body: JSON.stringify({
+          model: probeData[i].model,
+          messages: [{ role: 'user', content: 'Hi' }],
+          max_tokens: 1
+        })
+      });
+      const elapsed = Math.round(performance.now() - t0);
+      probeData[i].latency = elapsed;
+      probeData[i].status = res.ok ? 'ok' : 'fail';
+    } catch {
+      probeData[i].status = 'fail';
+    }
+    renderProbeResults();
+  }
 }
 
 // ══════════════════════════════════

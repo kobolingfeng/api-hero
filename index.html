@@ -183,6 +183,25 @@
             </div>
           </div>
         </section>
+
+        <!-- Model Probe Card -->
+        <section class="card" id="card-probe">
+          <div class="card-header">
+            <div class="card-dot"></div>
+            <h2 class="card-title" data-i18n="probe_title">模型探测</h2>
+          </div>
+          <div class="card-body">
+            <div class="probe-search">
+              <input type="text" id="probe-input" class="field-input" placeholder="输入模型名称，如 gpt-4o, claude-3..." data-i18n-placeholder="probe_placeholder">
+              <button class="btn btn-primary btn-sm" onclick="probeModel()">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5" cy="5" r="3.5"/><path d="M8 8l3 3"/></svg>
+                <span data-i18n="probe_search">搜索</span>
+              </button>
+            </div>
+            <div class="probe-hint" data-i18n="probe_hint">搜索指定模型，查看哪些已保存服务商支持该模型并测试连通性</div>
+            <div id="probe-results"></div>
+          </div>
+        </section>
       </div>
 
       <div class="col-right">
