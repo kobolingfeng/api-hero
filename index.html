@@ -80,89 +80,182 @@
       </div>
     </section>
 
-    <div class="layout">
-      <div class="col-left">
-        <section class="card" id="card-config">
-          <div class="card-header">
-            <div class="card-dot"></div>
-            <h2 class="card-title" data-i18n="config_title">接口配置</h2>
+    <!-- ═══ Primary Zone: Config + Results ═══ -->
+    <div class="layout-primary">
+      <section class="card" id="card-config">
+        <div class="card-header">
+          <div class="card-dot"></div>
+          <h2 class="card-title" data-i18n="config_title">接口配置</h2>
+        </div>
+        <div class="card-body">
+          <div class="smart-paste-area" id="smart-paste-area">
+            <div class="smart-paste-header">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 4h12M2 8h8M2 12h10"/><circle cx="14" cy="10" r="2" fill="currentColor" stroke="none"/></svg>
+              <span data-i18n="smart_paste_label">智能识别</span>
+            </div>
+            <textarea id="smart-paste-input" class="smart-paste-input" rows="3" placeholder="粘贴配置文本，自动识别 Base URL、API Key 和模型名..." data-i18n-placeholder="smart_paste_placeholder"></textarea>
+            <button class="btn btn-outline btn-sm smart-paste-btn" onclick="runSmartPaste()">
+              <svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7h12M9 3l4 4-4 4"/></svg>
+              <span data-i18n="smart_paste_btn">识别并填入</span>
+            </button>
           </div>
-          <div class="card-body">
-            <div class="smart-paste-area" id="smart-paste-area">
-              <div class="smart-paste-header">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 4h12M2 8h8M2 12h10"/><circle cx="14" cy="10" r="2" fill="currentColor" stroke="none"/></svg>
-                <span data-i18n="smart_paste_label">智能识别</span>
-              </div>
-              <textarea id="smart-paste-input" class="smart-paste-input" rows="3" placeholder="粘贴配置文本，自动识别 Base URL、API Key 和模型名..." data-i18n-placeholder="smart_paste_placeholder"></textarea>
-              <button class="btn btn-outline btn-sm smart-paste-btn" onclick="runSmartPaste()">
-                <svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7h12M9 3l4 4-4 4"/></svg>
-                <span data-i18n="smart_paste_btn">识别并填入</span>
+          <div class="field" id="field-base-url">
+            <label class="field-label" for="base-url" data-i18n="label_base_url">Base URL</label>
+            <input type="url" id="base-url" class="field-input" placeholder="https://api.openai.com/v1" value="https://api.openai.com/v1">
+            <p class="field-hint" data-i18n="hint_base_url">API 提供商的接口地址，通常以 /v1 结尾</p>
+          </div>
+          <div class="field" id="field-api-key">
+            <label class="field-label" for="api-key">
+              <span data-i18n="label_api_key">API Key</span>
+              <span class="field-label-badge" data-i18n="label_encrypted">已加密</span>
+            </label>
+            <div class="field-input-wrap">
+              <input type="password" id="api-key" class="field-input" placeholder="sk-...">
+              <button class="field-btn-icon" id="toggle-key" title="Toggle">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+                  <path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z"/>
+                  <circle cx="8" cy="8" r="2"/>
+                </svg>
               </button>
             </div>
-            <div class="field" id="field-base-url">
-              <label class="field-label" for="base-url" data-i18n="label_base_url">Base URL</label>
-              <input type="url" id="base-url" class="field-input" placeholder="https://api.openai.com/v1" value="https://api.openai.com/v1">
-              <p class="field-hint" data-i18n="hint_base_url">API 提供商的接口地址，通常以 /v1 结尾</p>
-            </div>
-            <div class="field" id="field-api-key">
-              <label class="field-label" for="api-key">
-                <span data-i18n="label_api_key">API Key</span>
-                <span class="field-label-badge" data-i18n="label_encrypted">已加密</span>
-              </label>
-              <div class="field-input-wrap">
-                <input type="password" id="api-key" class="field-input" placeholder="sk-...">
-                <button class="field-btn-icon" id="toggle-key" title="Toggle">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
-                    <path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z"/>
-                    <circle cx="8" cy="8" r="2"/>
-                  </svg>
-                </button>
-              </div>
-              <p class="field-hint" data-i18n="hint_api_key">你的 API 密钥，保存时会使用 AES-GCM 加密</p>
-            </div>
-            <div class="field" id="field-model">
-              <label class="field-label" for="model-name">
-                <span data-i18n="label_model">模型</span>
-              </label>
-              <div class="field-input-wrap">
-                <input type="text" id="model-name" class="field-input" placeholder="gpt-4o" value="gpt-3.5-turbo" autocomplete="off">
-                <button class="field-btn-icon" id="btn-fetch-models" onclick="fetchModels()" title="Fetch models">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
-                    <path d="M2 8a6 6 0 0111.5-2.3" /><path d="M14 8a6 6 0 01-11.5 2.3"/>
-                    <path d="M13 2v4h-4"/><path d="M3 14v-4h4"/>
-                  </svg>
-                </button>
-              </div>
-              <p class="field-hint" data-i18n="hint_model">手动输入或点击右侧按钮自动获取可用模型</p>
-              <div class="model-dropdown hidden" id="model-dropdown">
-                <div class="model-dropdown-header">
-                  <span class="model-dropdown-title" data-i18n="models_available">可用模型</span>
-                  <span class="model-dropdown-count" id="model-count"></span>
-                </div>
-                <div class="model-dropdown-list" id="model-list"></div>
-              </div>
-            </div>
-            <div class="field" id="field-prompt">
-              <label class="field-label" for="test-prompt" data-i18n="label_prompt">测试 Prompt</label>
-              <textarea id="test-prompt" class="field-input field-textarea" rows="2" placeholder="Say hello...">Say hello!</textarea>
-            </div>
-            <div class="card-actions" id="card-actions">
-              <button class="btn btn-primary" id="btn-test" onclick="testAPI()">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7h12M9 3l4 4-4 4"/></svg>
-                <span data-i18n="btn_test">测试连接</span>
+            <p class="field-hint" data-i18n="hint_api_key">你的 API 密钥，保存时会使用 AES-GCM 加密</p>
+          </div>
+          <div class="field" id="field-model">
+            <label class="field-label" for="model-name">
+              <span data-i18n="label_model">模型</span>
+            </label>
+            <div class="field-input-wrap">
+              <input type="text" id="model-name" class="field-input" placeholder="gpt-4o" value="gpt-3.5-turbo" autocomplete="off">
+              <button class="field-btn-icon" id="btn-fetch-models" onclick="fetchModels()" title="Fetch models">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+                  <path d="M2 8a6 6 0 0111.5-2.3" /><path d="M14 8a6 6 0 01-11.5 2.3"/>
+                  <path d="M13 2v4h-4"/><path d="M3 14v-4h4"/>
+                </svg>
               </button>
-              <button class="btn btn-outline" id="btn-ping" onclick="pingAPI()">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="M7 4v3l2 2"/></svg>
-                <span data-i18n="btn_ping">连通检测</span>
-              </button>
-              <button class="btn btn-outline" id="btn-save" onclick="saveConfig()">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 13H3a1 1 0 01-1-1V2a1 1 0 011-1h6l3 3v8a1 1 0 01-1 1z"/><path d="M9 1v3h3M5 9h4"/></svg>
-                <span data-i18n="btn_save">保存</span>
-              </button>
+            </div>
+            <p class="field-hint" data-i18n="hint_model">手动输入或点击右侧按钮自动获取可用模型</p>
+            <div class="model-dropdown hidden" id="model-dropdown">
+              <div class="model-dropdown-header">
+                <span class="model-dropdown-title" data-i18n="models_available">可用模型</span>
+                <span class="model-dropdown-count" id="model-count"></span>
+              </div>
+              <div class="model-dropdown-list" id="model-list"></div>
             </div>
           </div>
-        </section>
+          <div class="field" id="field-prompt">
+            <label class="field-label" for="test-prompt" data-i18n="label_prompt">测试 Prompt</label>
+            <textarea id="test-prompt" class="field-input field-textarea" rows="2" placeholder="Say hello...">Say hello!</textarea>
+          </div>
+          <div class="card-actions" id="card-actions">
+            <button class="btn btn-primary" id="btn-test" onclick="testAPI()">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7h12M9 3l4 4-4 4"/></svg>
+              <span data-i18n="btn_test">测试连接</span>
+            </button>
+            <button class="btn btn-outline" id="btn-ping" onclick="pingAPI()">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="M7 4v3l2 2"/></svg>
+              <span data-i18n="btn_ping">连通检测</span>
+            </button>
+            <button class="btn btn-outline" id="btn-save" onclick="saveConfig()">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 13H3a1 1 0 01-1-1V2a1 1 0 011-1h6l3 3v8a1 1 0 01-1 1z"/><path d="M9 1v3h3M5 9h4"/></svg>
+              <span data-i18n="btn_save">保存</span>
+            </button>
+          </div>
+        </div>
+      </section>
 
+      <!-- Results Card -->
+      <section class="card" id="card-results">
+        <div class="card-header">
+          <div class="card-dot"></div>
+          <h2 class="card-title" data-i18n="result_title">测试结果</h2>
+          <div class="status-badge hidden" id="status-badge">
+            <span class="status-dot"></span>
+            <span class="status-text" id="status-text"></span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="result-state" id="state-idle">
+            <div class="idle-visual">
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1" opacity="0.25">
+                <circle cx="24" cy="24" r="20"/>
+                <path d="M24 14v10l6 6"/>
+              </svg>
+            </div>
+            <p class="idle-text" data-i18n="idle_text">等待测试…</p>
+          </div>
+          <div class="result-state hidden" id="state-loading">
+            <div class="loader"><div class="loader-ring"></div></div>
+            <p class="loading-text" data-i18n="loading_text">正在连接…</p>
+          </div>
+          <div class="result-state hidden" id="state-ping">
+            <div class="ping-results" id="ping-results"></div>
+          </div>
+          <div class="result-state hidden" id="state-success">
+            <div class="result-indicator success-indicator">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 10l4 4 8-8"/></svg>
+              <span data-i18n="success_text">连接成功</span>
+            </div>
+            <pre class="result-output" id="result-output"></pre>
+          </div>
+          <div class="result-state hidden" id="state-error">
+            <div class="result-indicator error-indicator">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 5l10 10M15 5L5 15"/></svg>
+              <span data-i18n="error_text">连接失败</span>
+            </div>
+            <pre class="result-output error-output" id="error-output"></pre>
+          </div>
+          <div class="stats-row hidden" id="stats-row">
+            <div class="stat">
+              <span class="stat-label" data-i18n="stat_latency">延迟</span>
+              <span class="stat-value" id="stat-latency">—</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label" data-i18n="stat_tokens">Tokens</span>
+              <span class="stat-value" id="stat-tokens">—</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label" data-i18n="stat_model">模型</span>
+              <span class="stat-value" id="stat-model">—</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ═══ Secondary Zone: Saved + Export + Probe ═══ -->
+    <div class="layout-secondary">
+      <!-- Saved Configs Card -->
+      <section class="card" id="card-saved">
+        <div class="card-header">
+          <div class="card-dot"></div>
+          <h2 class="card-title" data-i18n="saved_title">已保存</h2>
+          <div class="card-header-actions">
+            <button class="btn-icon" onclick="testAllProviders()" title="Test All" id="btn-test-all">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7h12M9 3l4 4-4 4"/></svg>
+            </button>
+            <button class="btn-icon" onclick="exportAllProviders()" title="Export All" id="btn-export-all">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2h10M2 6h10M2 10h10"/><path d="M12 5l-2 2 2 2"/></svg>
+            </button>
+            <button class="btn-icon" onclick="importConfigs()" title="Import">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 1v9M3 6l4 4 4-4"/><path d="M1 11v1a1 1 0 001 1h10a1 1 0 001-1v-1"/></svg>
+            </button>
+          </div>
+          <input type="file" id="import-file" accept=".json,.toml,.env,.yaml,.yml" class="sr-only">
+        </div>
+        <div class="card-body">
+          <div class="saved-list" id="saved-list">
+            <div class="empty-state" id="empty-state">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3">
+                <rect x="4" y="4" width="24" height="24" rx="3"/>
+                <path d="M10 16h12M16 10v12" stroke-dasharray="2 2"/>
+              </svg>
+              <p data-i18n="empty_saved">暂无保存的配置</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="layout-secondary-right">
         <!-- Export Card -->
         <section class="card" id="card-export">
           <div class="card-header">
@@ -180,66 +273,6 @@
               <button class="export-item" onclick="exportConfig('curl')"><span class="export-label">cURL</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
               <button class="export-item" onclick="exportConfig('python')"><span class="export-label">Python</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
               <button class="export-item" onclick="exportConfig('json')"><span class="export-label">JSON</span><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 6h8M7 3l3 3-3 3"/></svg></button>
-            </div>
-          </div>
-        </section>
-      </div>
-
-      <div class="col-right">
-        <!-- Results Card -->
-        <section class="card" id="card-results">
-          <div class="card-header">
-            <div class="card-dot"></div>
-            <h2 class="card-title" data-i18n="result_title">测试结果</h2>
-            <div class="status-badge hidden" id="status-badge">
-              <span class="status-dot"></span>
-              <span class="status-text" id="status-text"></span>
-            </div>
-          </div>
-          <div class="card-body">
-            <div class="result-state" id="state-idle">
-              <div class="idle-visual">
-                <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1" opacity="0.25">
-                  <circle cx="24" cy="24" r="20"/>
-                  <path d="M24 14v10l6 6"/>
-                </svg>
-              </div>
-              <p class="idle-text" data-i18n="idle_text">等待测试…</p>
-            </div>
-            <div class="result-state hidden" id="state-loading">
-              <div class="loader"><div class="loader-ring"></div></div>
-              <p class="loading-text" data-i18n="loading_text">正在连接…</p>
-            </div>
-            <div class="result-state hidden" id="state-ping">
-              <div class="ping-results" id="ping-results"></div>
-            </div>
-            <div class="result-state hidden" id="state-success">
-              <div class="result-indicator success-indicator">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 10l4 4 8-8"/></svg>
-                <span data-i18n="success_text">连接成功</span>
-              </div>
-              <pre class="result-output" id="result-output"></pre>
-            </div>
-            <div class="result-state hidden" id="state-error">
-              <div class="result-indicator error-indicator">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 5l10 10M15 5L5 15"/></svg>
-                <span data-i18n="error_text">连接失败</span>
-              </div>
-              <pre class="result-output error-output" id="error-output"></pre>
-            </div>
-            <div class="stats-row hidden" id="stats-row">
-              <div class="stat">
-                <span class="stat-label" data-i18n="stat_latency">延迟</span>
-                <span class="stat-value" id="stat-latency">—</span>
-              </div>
-              <div class="stat">
-                <span class="stat-label" data-i18n="stat_tokens">Tokens</span>
-                <span class="stat-value" id="stat-tokens">—</span>
-              </div>
-              <div class="stat">
-                <span class="stat-label" data-i18n="stat_model">模型</span>
-                <span class="stat-value" id="stat-model">—</span>
-              </div>
             </div>
           </div>
         </section>
@@ -262,37 +295,6 @@
             </div>
             <div class="probe-hint" data-i18n="probe_hint">选择一个模型，查看哪些已保存服务商支持该模型并测试连通性</div>
             <div id="probe-results"></div>
-          </div>
-        </section>
-
-        <!-- Saved Configs Card -->
-        <section class="card" id="card-saved">
-          <div class="card-header">
-            <div class="card-dot"></div>
-            <h2 class="card-title" data-i18n="saved_title">已保存</h2>
-            <div class="card-header-actions">
-              <button class="btn-icon" onclick="testAllProviders()" title="Test All" id="btn-test-all">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7h12M9 3l4 4-4 4"/></svg>
-              </button>
-              <button class="btn-icon" onclick="exportAllProviders()" title="Export All" id="btn-export-all">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2h10M2 6h10M2 10h10"/><path d="M12 5l-2 2 2 2"/></svg>
-              </button>
-              <button class="btn-icon" onclick="importConfigs()" title="Import">
-                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 1v9M3 6l4 4 4-4"/><path d="M1 11v1a1 1 0 001 1h10a1 1 0 001-1v-1"/></svg>
-              </button>
-            </div>
-            <input type="file" id="import-file" accept=".json,.toml,.env,.yaml,.yml" class="sr-only">
-          </div>
-          <div class="card-body">
-            <div class="saved-list" id="saved-list">
-              <div class="empty-state" id="empty-state">
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3">
-                  <rect x="4" y="4" width="24" height="24" rx="3"/>
-                  <path d="M10 16h12M16 10v12" stroke-dasharray="2 2"/>
-                </svg>
-                <p data-i18n="empty_saved">暂无保存的配置</p>
-              </div>
-            </div>
           </div>
         </section>
       </div>

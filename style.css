@@ -187,16 +187,24 @@ body {
   padding: 0 24px 48px;
 }
 
-/* Layout */
-.layout {
+/* ═══ Layout: Primary Zone (Config + Results) ═══ */
+.layout-primary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: stretch;
+  margin-bottom: 20px;
+}
+
+/* ═══ Layout: Secondary Zone (Saved + Export + Probe) ═══ */
+.layout-secondary {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
   align-items: start;
 }
 
-.col-left,
-.col-right {
+.layout-secondary-right {
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -207,8 +215,9 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  overflow: hidden;
   transition: border-color var(--transition);
+  display: flex;
+  flex-direction: column;
 }
 
 .card:hover {
@@ -247,6 +256,7 @@ body {
 
 .card-body {
   padding: 20px;
+  flex: 1;
 }
 
 /* Fields */
@@ -454,6 +464,23 @@ body {
 /* Results */
 .result-state {
   min-height: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}
+
+#card-results .card-body {
+  display: flex;
+  flex-direction: column;
+}
+
+#state-success,
+#state-error,
+#state-ping {
+  align-items: stretch;
+  justify-content: flex-start;
 }
 
 .idle-visual {
@@ -526,7 +553,6 @@ body {
   color: var(--text-primary);
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: 240px;
   overflow-y: auto;
 }
 
@@ -1717,8 +1743,12 @@ body {
 }
 
 /* Responsive */
-@media (max-width: 768px) {
-  .layout {
+@media (max-width: 900px) {
+  .layout-primary {
+    grid-template-columns: 1fr;
+  }
+
+  .layout-secondary {
     grid-template-columns: 1fr;
   }
 
