@@ -4,7 +4,7 @@
 
 ## Links
 
-- 🌐 **在线使用**：[api-hero-tester.netlify.app](https://api-hero-tester.netlify.app)
+- 🌐 **在线使用**：[api-hero.pages.dev](https://api-hero.pages.dev)
 - 💬 **Linux.do**：[linux.do](https://linux.do)
 
 ## 功能
