@@ -1,13 +1,15 @@
 /* =========================================
    API Tester — App Logic
-   AES-GCM Encryption · Onboarding · Ping
+   Provider-Centric · AES-GCM · Batch Test
    ========================================= */
 
-const STORAGE_KEY = 'api-tester-configs';
+const STORAGE_KEY = 'api-tester-providers';
 const CRYPTO_KEY_NAME = 'api-tester-ck';
 let currentExportData = { content: '', filename: '' };
 let currentLang = 'zh';
 let onboardingStep = 0;
+let expandedProviders = new Set();
+let fetchedModelsCache = []; // temp cache for current fetch
 
 // ══════════════════════════════════
 //  i18n
@@ -30,22 +32,23 @@ const i18n = {
     models_fetching: '正在获取模型列表…',
     models_none: '未找到可用模型',
     models_error: '获取模型列表失败',
-    testall_title: '批量测试',
-    testall_empty: '没有保存的配置，请先保存至少一个',
-    testall_running: '正在批量测试…',
+    testall_title: '批量连通测试',
+    testall_empty: '没有保存的服务商，请先保存至少一个',
+    testall_running: '批量测试中…',
     testall_done: '批量测试完成',
     testall_pass: '通过',
     testall_fail: '失败',
     testall_fetching: '获取模型…',
     testall_testing: '测试中…',
-    testall_nomodels: '无法获取模型列表',
+    testall_nomodels: '无可用模型',
+    testall_skip: '跳过（无模型）',
     btn_test: '测试连接',
     btn_ping: '连通检测',
-    btn_save: '保存',
+    btn_save: '保存服务商',
     btn_copy: '复制',
     btn_download: '下载',
-    saved_title: '已保存',
-    empty_saved: '暂无保存的配置',
+    saved_title: '服务商',
+    empty_saved: '暂无保存的服务商',
     result_title: '测试结果',
     idle_text: '等待测试…',
     loading_text: '正在连接…',
@@ -64,14 +67,17 @@ const i18n = {
     toast_deleted: '✓ 已删除',
     toast_loaded: '✓ 已加载',
     toast_copied: '✓ 已复制',
-    toast_imported: '✓ 导入成功',
+    toast_imported: '✓ 导入并保存成功',
     toast_import_fail: '✗ 导入失败',
     toast_need_url: '请填写 Base URL',
     toast_need_key: '请填写 API Key',
     toast_need_model: '请填写模型名',
     toast_need_config: '请至少填写 Base URL 和 API Key',
-    prompt_name: '为该配置命名：',
-    confirm_delete: '确认删除此配置？',
+    toast_renamed: '✓ 已重命名',
+    toast_fetching_models: '正在获取模型列表…',
+    prompt_name: '为该服务商命名：',
+    prompt_rename: '输入新名称：',
+    confirm_delete: '确认删除该服务商及其所有配置？',
     status_ok: '正常',
     status_fail: '失败',
     ping_dns: 'DNS 解析',
@@ -86,14 +92,17 @@ const i18n = {
     ping_tls_ok: '安全连接已建立',
     ping_auth_ok: '认证通过',
     ping_model_ok: '模型可用',
+    provider_models_count: '个模型',
+    provider_no_models: '尚未获取模型',
+    provider_refresh: '刷新模型列表',
     onboard: [
       { title: '👋 欢迎使用 API Tester', desc: '这是一个纯静态的 OpenAI 兼容 API 测试工具。你的 API Key 使用 AES-GCM 加密存储在浏览器中，不会发送到任何第三方服务器。\n\n让我带你快速了解各个功能。' },
       { title: '① 填写 Base URL', desc: 'API 提供商给你的接口地址。通常格式为 https://xxx.com/v1 。如果不确定，可以先试试填入提供商给的地址。', target: 'field-base-url' },
       { title: '② 填写 API Key', desc: '你的 API 密钥。输入框默认隐藏内容，点击右侧 👁 可切换显示。保存时会自动加密，不会以明文存储。', target: 'field-api-key' },
-      { title: '③ 选择模型', desc: '手动填写模型名称，或点击输入框右侧的刷新按钮自动获取提供商的可用模型列表。', target: 'field-model' },
-      { title: '④ 测试连接', desc: '• 「测试连接」会发送一条消息并获取完整回复\n• 「连通检测」会逐步检查 DNS、HTTPS、认证和模型是否可用\n• 「保存」会加密保存当前配置以便下次使用', target: 'card-actions' },
-      { title: '⑤ 管理已保存的配置', desc: '保存过的配置会出现在这里。点击即可快速加载，也可以导入外部配置文件（支持 .json / .env / .toml / .yaml）。', target: 'card-saved' },
-      { title: '⑥ 导出配置', desc: '你可以将当前配置一键导出为 OpenAI .env、Codex CLI、Claude Code、cURL、Python 等多种主流格式，方便在不同工具中使用。', target: 'card-export' },
+      { title: '③ 选择模型', desc: '手动填写模型名称，或点击输入框右侧的刷新按钮自动获取提供商的全部可用模型列表。', target: 'field-model' },
+      { title: '④ 测试连接', desc: '• 「测试连接」会发送一条消息并获取完整回复\n• 「连通检测」会逐步检查 DNS、HTTPS、认证和模型\n• 「保存服务商」会自动获取所有可用模型并加密保存', target: 'card-actions' },
+      { title: '⑤ 管理服务商', desc: '保存的服务商会列在这里，展开可看到全部模型。点击模型即可加载。支持重命名、删除和一键批量测试。还可导入 .json / .env / .toml / .yaml 文件（导入自动保存）。', target: 'card-saved' },
+      { title: '⑥ 导出配置', desc: '你可以将当前配置一键导出为 OpenAI .env、Codex CLI、Claude Code、cURL、Python 等多种主流格式。', target: 'card-export' },
       { title: '🎉 准备就绪！', desc: '你已经了解了所有功能。现在就填写你的 API 信息，开始测试吧！\n\n提示：右上角的 ❓ 按钮可以随时重新打开引导。' },
     ],
   },
@@ -114,22 +123,23 @@ const i18n = {
     models_fetching: 'Fetching model list…',
     models_none: 'No models found',
     models_error: 'Failed to fetch models',
-    testall_title: 'Batch Test',
-    testall_empty: 'No saved configs. Save at least one first.',
+    testall_title: 'Batch Connectivity Test',
+    testall_empty: 'No saved providers. Save at least one first.',
     testall_running: 'Running batch test…',
     testall_done: 'Batch test complete',
     testall_pass: 'Pass',
     testall_fail: 'Fail',
     testall_fetching: 'Fetching…',
     testall_testing: 'Testing…',
-    testall_nomodels: 'Cannot list models',
+    testall_nomodels: 'No models available',
+    testall_skip: 'Skipped (no models)',
     btn_test: 'Test',
     btn_ping: 'Ping',
-    btn_save: 'Save',
+    btn_save: 'Save Provider',
     btn_copy: 'Copy',
     btn_download: 'Download',
-    saved_title: 'SAVED',
-    empty_saved: 'No saved configurations',
+    saved_title: 'PROVIDERS',
+    empty_saved: 'No saved providers',
     result_title: 'RESULTS',
     idle_text: 'Waiting for test…',
     loading_text: 'Connecting…',
@@ -148,14 +158,17 @@ const i18n = {
     toast_deleted: '✓ Deleted',
     toast_loaded: '✓ Loaded',
     toast_copied: '✓ Copied',
-    toast_imported: '✓ Imported',
+    toast_imported: '✓ Imported & saved',
     toast_import_fail: '✗ Import failed',
     toast_need_url: 'Base URL required',
     toast_need_key: 'API Key required',
     toast_need_model: 'Model required',
     toast_need_config: 'Need at least Base URL and API Key',
-    prompt_name: 'Name this config:',
-    confirm_delete: 'Delete this config?',
+    toast_renamed: '✓ Renamed',
+    toast_fetching_models: 'Fetching models…',
+    prompt_name: 'Name this provider:',
+    prompt_rename: 'Enter new name:',
+    confirm_delete: 'Delete this provider and all its config?',
     status_ok: 'OK',
     status_fail: 'FAIL',
     ping_dns: 'DNS Resolution',
@@ -170,13 +183,16 @@ const i18n = {
     ping_tls_ok: 'Secure connection established',
     ping_auth_ok: 'Authenticated',
     ping_model_ok: 'Model available',
+    provider_models_count: ' models',
+    provider_no_models: 'Models not fetched',
+    provider_refresh: 'Refresh model list',
     onboard: [
       { title: '👋 Welcome to API Tester', desc: 'A fully static OpenAI-compatible API testing tool. Your API Key is encrypted with AES-GCM and stored only in your browser.\n\nLet me walk you through the features.' },
       { title: '① Base URL', desc: 'The endpoint URL from your API provider. Usually something like https://api.openai.com/v1. If unsure, paste the URL your provider gave you.', target: 'field-base-url' },
       { title: '② API Key', desc: 'Your secret API key. The input is masked by default — click the 👁 icon to toggle visibility. Keys are encrypted before saving.', target: 'field-api-key' },
-      { title: '③ Model', desc: 'Type a model name manually, or click the refresh icon next to the input to auto-fetch available models from the provider.', target: 'field-model' },
-      { title: '④ Test & Save', desc: '• "Test" sends a message and gets a full response\n• "Ping" runs a step-by-step connectivity check\n• "Save" encrypts and stores the current config', target: 'card-actions' },
-      { title: '⑤ Saved Configs', desc: 'Your saved configurations appear here. Click to load, or import configs from .json / .env / .toml / .yaml files.', target: 'card-saved' },
+      { title: '③ Model', desc: 'Type a model name manually, or click the refresh icon to auto-fetch ALL available models from the provider.', target: 'field-model' },
+      { title: '④ Test & Save', desc: '• "Test" sends a message and gets a full response\n• "Ping" runs a step-by-step connectivity check\n• "Save Provider" auto-fetches all models and saves encrypted', target: 'card-actions' },
+      { title: '⑤ Providers', desc: 'Saved providers appear here with all their models. Click a model to load it. You can rename, delete, refresh models, or batch-test all providers. Importing a config auto-saves it.', target: 'card-saved' },
       { title: '⑥ Export', desc: 'Export your config in multiple formats: OpenAI .env, Codex CLI, Claude Code, cURL, Python and more.', target: 'card-export' },
       { title: '🎉 Ready!', desc: 'You\'re all set! Fill in your API details and start testing.\n\nTip: Click the ❓ button in the header to restart this guide anytime.' },
     ],
@@ -198,7 +214,7 @@ function applyLang() {
 function toggleLang() {
   currentLang = currentLang === 'zh' ? 'en' : 'zh';
   applyLang();
-  loadSavedConfigs();
+  renderProviders();
 }
 
 // ══════════════════════════════════
@@ -208,11 +224,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   currentLang = localStorage.getItem('api-tester-lang') || 'zh';
   applyLang();
   await initCrypto();
-  loadSavedConfigs();
+  migrateOldData();
+  renderProviders();
   setupListeners();
   loadLastUsed();
-
-  // Auto-start onboarding for first-time users
   if (!localStorage.getItem('api-tester-onboarded')) {
     setTimeout(() => startOnboarding(), 600);
   }
@@ -233,7 +248,6 @@ function setupListeners() {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeModal(); closeTestAllModal(); }
   });
-  // Close model dropdown when clicking outside
   document.addEventListener('click', e => {
     const dd = document.getElementById('model-dropdown');
     const field = document.getElementById('field-model');
@@ -241,6 +255,19 @@ function setupListeners() {
       dd.classList.add('hidden');
     }
   });
+}
+
+// Migrate old format (single model) to new format (models array)
+function migrateOldData() {
+  const raw = getRawProviders();
+  let changed = false;
+  for (const p of raw) {
+    if (!p.models) {
+      p.models = p.model ? [p.model] : [];
+      changed = true;
+    }
+  }
+  if (changed) setProviders(raw);
 }
 
 // ══════════════════════════════════
@@ -252,7 +279,6 @@ async function initCrypto() {
   try {
     let rawKey = localStorage.getItem(CRYPTO_KEY_NAME);
     if (!rawKey) {
-      // Generate a new 256-bit key
       const keyData = crypto.getRandomValues(new Uint8Array(32));
       rawKey = arrayToBase64(keyData);
       localStorage.setItem(CRYPTO_KEY_NAME, rawKey);
@@ -268,13 +294,10 @@ async function initCrypto() {
 }
 
 async function encryptText(plaintext) {
-  if (!cryptoKey) return btoa(unescape(encodeURIComponent(plaintext))); // fallback
+  if (!cryptoKey) return btoa(unescape(encodeURIComponent(plaintext)));
   const enc = new TextEncoder();
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv }, cryptoKey, enc.encode(plaintext)
-  );
-  // Prepend IV to ciphertext
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, cryptoKey, enc.encode(plaintext));
   const combined = new Uint8Array(iv.length + ct.byteLength);
   combined.set(iv);
   combined.set(new Uint8Array(ct), iv.length);
@@ -284,7 +307,6 @@ async function encryptText(plaintext) {
 async function decryptText(stored) {
   if (!stored) return '';
   if (!stored.startsWith('enc:')) {
-    // Legacy plaintext or base64 fallback
     try { return decodeURIComponent(escape(atob(stored))); } catch { return stored; }
   }
   if (!cryptoKey) return '';
@@ -292,9 +314,7 @@ async function decryptText(stored) {
     const data = base64ToArray(stored.slice(4));
     const iv = data.slice(0, 12);
     const ct = data.slice(12);
-    const dec = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv }, cryptoKey, ct
-    );
+    const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, cryptoKey, ct);
     return new TextDecoder().decode(dec);
   } catch (e) {
     console.warn('Decryption failed', e);
@@ -302,10 +322,7 @@ async function decryptText(stored) {
   }
 }
 
-function arrayToBase64(arr) {
-  return btoa(String.fromCharCode(...new Uint8Array(arr)));
-}
-
+function arrayToBase64(arr) { return btoa(String.fromCharCode(...new Uint8Array(arr))); }
 function base64ToArray(b64) {
   const bin = atob(b64);
   const arr = new Uint8Array(bin.length);
@@ -313,7 +330,9 @@ function base64ToArray(b64) {
   return arr;
 }
 
-// ── Toast ──
+// ══════════════════════════════════
+//  TOAST & CONFIG HELPERS
+// ══════════════════════════════════
 function showToast(msg) {
   const toast = document.getElementById('toast');
   toast.textContent = msg;
@@ -322,7 +341,6 @@ function showToast(msg) {
   toast._timer = setTimeout(() => toast.classList.remove('show'), 2200);
 }
 
-// ── Config ──
 function getConfig() {
   return {
     baseUrl: document.getElementById('base-url').value.trim(),
@@ -334,7 +352,6 @@ function getConfig() {
 
 function saveLastUsed() {
   const c = getConfig();
-  // Don't save API key in last-used (only in encrypted saved configs)
   localStorage.setItem('api-tester-last', JSON.stringify({
     baseUrl: c.baseUrl, model: c.model, prompt: c.prompt
   }));
@@ -351,15 +368,233 @@ function loadLastUsed() {
   } catch {}
 }
 
-// ══════════════════════════════════
-//  NORMALIZE BASE URL
-// ══════════════════════════════════
 function normalizeBase(url) {
   let base = url.replace(/\/+$/, '');
   if (!base.endsWith('/v1')) {
     try { const u = new URL(base); if (u.pathname === '/' || u.pathname === '') base += '/v1'; } catch {}
   }
   return base;
+}
+
+function extractHost(url) { try { return new URL(url).hostname; } catch { return 'provider'; } }
+
+// ══════════════════════════════════
+//  PROVIDER STORAGE (encrypted)
+// ══════════════════════════════════
+// Data model: { id, name, baseUrl, apiKey (encrypted), models: string[], ts }
+
+function getRawProviders() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; }
+}
+
+function setProviders(arr) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+}
+
+async function getProviders() {
+  const raw = getRawProviders();
+  const out = [];
+  for (const item of raw) {
+    out.push({
+      ...item,
+      _key: await decryptText(item.apiKey),
+    });
+  }
+  return out;
+}
+
+// Save current config as a new provider (auto-fetches models)
+async function saveConfig() {
+  const c = getConfig();
+  if (!c.baseUrl || !c.apiKey) { showToast(t('toast_need_config')); return; }
+  const name = prompt(t('prompt_name'), extractHost(c.baseUrl));
+  if (!name) return;
+
+  showToast(t('toast_fetching_models'));
+  const models = await fetchModelsRaw(c.baseUrl, c.apiKey);
+  // If we got models, use them; otherwise use the current model field as fallback
+  const modelList = models.length > 0 ? models : (c.model ? [c.model] : []);
+
+  const encKey = await encryptText(c.apiKey);
+  const raw = getRawProviders();
+  raw.push({
+    id: Date.now(),
+    name,
+    baseUrl: c.baseUrl,
+    apiKey: encKey,
+    models: modelList,
+    ts: new Date().toISOString()
+  });
+  setProviders(raw);
+  renderProviders();
+  showToast(t('toast_saved') + ` — ${modelList.length} ${currentLang === 'zh' ? '个模型' : 'models'}`);
+}
+
+// ══════════════════════════════════
+//  RENDER PROVIDERS LIST
+// ══════════════════════════════════
+async function renderProviders() {
+  const providers = await getProviders();
+  const container = document.getElementById('saved-list');
+  if (!providers.length) {
+    container.innerHTML = `<div class="empty-state"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3"><rect x="4" y="4" width="24" height="24" rx="3"/><path d="M10 16h12M16 10v12" stroke-dasharray="2 2"/></svg><p>${t('empty_saved')}</p></div>`;
+    return;
+  }
+
+  const maskKey = (k) => k ? k.substring(0, 5) + '•••' + k.substring(k.length - 3) : '•••';
+
+  container.innerHTML = providers.map(p => {
+    const isExpanded = expandedProviders.has(p.id);
+    const modelCount = (p.models || []).length;
+    return `
+      <div class="provider-card ${isExpanded ? 'expanded' : ''}">
+        <div class="provider-header" onclick="toggleProvider(${p.id})">
+          <div class="provider-expand-icon">${isExpanded ? '▾' : '▸'}</div>
+          <div class="provider-info">
+            <div class="provider-name">${esc(p.name)}</div>
+            <div class="provider-meta">
+              ${esc(extractHost(p.baseUrl))} · ${modelCount} ${t('provider_models_count')} · Key: ${maskKey(p._key)}
+            </div>
+          </div>
+          <div class="provider-actions" onclick="event.stopPropagation()">
+            <button class="btn-icon btn-icon-sm" onclick="refreshProviderModels(${p.id})" title="${t('provider_refresh')}">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8a6 6 0 0111.5-2.3"/><path d="M14 8a6 6 0 01-11.5 2.3"/><path d="M13 2v4h-4"/><path d="M3 14v-4h4"/></svg>
+            </button>
+            <button class="btn-icon btn-icon-sm" onclick="renameProvider(${p.id})" title="Rename">
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M7.5 2.5l2 2M2 8l5-5 2 2-5 5H2V8z"/></svg>
+            </button>
+            <button class="btn-icon btn-icon-sm" onclick="deleteProvider(${p.id})" title="Delete">
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 3h8M4.5 3V2h3v1M3 3v7.5a.5.5 0 00.5.5h5a.5.5 0 00.5-.5V3"/></svg>
+            </button>
+          </div>
+        </div>
+        ${isExpanded ? `
+          <div class="provider-models">
+            ${modelCount === 0
+              ? `<div class="provider-model-empty">${t('provider_no_models')}</div>`
+              : (p.models || []).map(m => `
+                <button class="provider-model-item" onclick="loadProviderModel(${p.id}, '${esc(m)}')">
+                  <span class="provider-model-name">${esc(m)}</span>
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M1 5h6M5 2l3 3-3 3"/></svg>
+                </button>
+              `).join('')
+            }
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleProvider(id) {
+  if (expandedProviders.has(id)) expandedProviders.delete(id);
+  else expandedProviders.add(id);
+  renderProviders();
+}
+
+async function loadProviderModel(providerId, model) {
+  const providers = await getProviders();
+  const p = providers.find(x => x.id === providerId);
+  if (!p) return;
+  document.getElementById('base-url').value = p.baseUrl;
+  document.getElementById('api-key').value = p._key;
+  document.getElementById('model-name').value = model;
+  showToast(t('toast_loaded') + ` — ${model}`);
+}
+
+async function renameProvider(id) {
+  const raw = getRawProviders();
+  const p = raw.find(x => x.id === id);
+  if (!p) return;
+  const newName = prompt(t('prompt_rename'), p.name);
+  if (!newName || newName === p.name) return;
+  p.name = newName;
+  setProviders(raw);
+  renderProviders();
+  showToast(t('toast_renamed'));
+}
+
+async function deleteProvider(id) {
+  if (!confirm(t('confirm_delete'))) return;
+  const raw = getRawProviders().filter(p => p.id !== id);
+  expandedProviders.delete(id);
+  setProviders(raw);
+  renderProviders();
+  showToast(t('toast_deleted'));
+}
+
+async function refreshProviderModels(id) {
+  const providers = await getProviders();
+  const p = providers.find(x => x.id === id);
+  if (!p) return;
+  showToast(t('toast_fetching_models'));
+  const models = await fetchModelsRaw(p.baseUrl, p._key);
+  if (models.length > 0) {
+    const raw = getRawProviders();
+    const rp = raw.find(x => x.id === id);
+    if (rp) { rp.models = models; setProviders(raw); }
+    expandedProviders.add(id);
+    renderProviders();
+    showToast(`✓ ${models.length} ${t('provider_models_count')}`);
+  } else {
+    showToast(t('models_error'));
+  }
+}
+
+// ══════════════════════════════════
+//  FETCH MODELS
+// ══════════════════════════════════
+async function fetchModelsRaw(baseUrl, apiKey) {
+  try {
+    const base = normalizeBase(baseUrl);
+    const res = await fetch(`${base}/models`, {
+      headers: { 'Authorization': `Bearer ${apiKey}` }
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.data || []).map(m => m.id).sort();
+  } catch { return []; }
+}
+
+// UI fetch models → show dropdown
+async function fetchModels() {
+  const baseUrl = document.getElementById('base-url').value.trim();
+  const apiKey = document.getElementById('api-key').value.trim();
+  if (!baseUrl) { showToast(t('toast_need_url')); return; }
+  if (!apiKey) { showToast(t('toast_need_key')); return; }
+
+  const btn = document.getElementById('btn-fetch-models');
+  const dropdown = document.getElementById('model-dropdown');
+  const list = document.getElementById('model-list');
+  const countEl = document.getElementById('model-count');
+
+  btn.classList.add('spinning');
+  dropdown.classList.remove('hidden');
+  list.innerHTML = `<div class="model-loading">${t('models_fetching')}</div>`;
+  countEl.textContent = '';
+
+  const models = await fetchModelsRaw(baseUrl, apiKey);
+  fetchedModelsCache = models;
+
+  if (models.length === 0) {
+    list.innerHTML = `<div class="model-loading">${t('models_none')}</div>`;
+    countEl.textContent = '0';
+  } else {
+    const current = document.getElementById('model-name').value.trim();
+    countEl.textContent = models.length;
+    list.innerHTML = models.map(id => `
+      <button class="model-option${id === current ? ' selected' : ''}" onclick="selectModel('${esc(id)}')">
+        <span class="model-option-id">${esc(id)}</span>
+      </button>
+    `).join('');
+  }
+  btn.classList.remove('spinning');
+}
+
+function selectModel(id) {
+  document.getElementById('model-name').value = id;
+  document.getElementById('model-dropdown').classList.add('hidden');
+  showToast('✓ ' + id);
 }
 
 // ══════════════════════════════════
@@ -385,9 +620,7 @@ async function testAPI() {
         max_tokens: 256
       })
     });
-
     const elapsed = Math.round(performance.now() - t0);
-
     if (!res.ok) {
       const txt = await res.text();
       let msg = `HTTP ${res.status} ${res.statusText}`;
@@ -395,7 +628,6 @@ async function testAPI() {
       showResultState('error', msg, elapsed);
       return;
     }
-
     const data = await res.json();
     const content = data.choices?.[0]?.message?.content || '(empty)';
     const model = data.model || c.model;
@@ -414,8 +646,7 @@ function showResultState(state, content, latency, tokens, model) {
   const statsRow = document.getElementById('stats-row');
   if (state === 'success') {
     document.getElementById('result-output').textContent = content;
-    badge.className = 'status-badge success';
-    badge.classList.remove('hidden');
+    badge.className = 'status-badge success'; badge.classList.remove('hidden');
     document.getElementById('status-text').textContent = t('status_ok');
     statsRow.classList.remove('hidden');
     document.getElementById('stat-latency').textContent = latency + 'ms';
@@ -423,13 +654,11 @@ function showResultState(state, content, latency, tokens, model) {
     document.getElementById('stat-model').textContent = model;
   } else if (state === 'error') {
     document.getElementById('error-output').textContent = content;
-    badge.className = 'status-badge error';
-    badge.classList.remove('hidden');
+    badge.className = 'status-badge error'; badge.classList.remove('hidden');
     document.getElementById('status-text').textContent = t('status_fail');
     statsRow.classList.add('hidden');
   } else {
-    badge.classList.add('hidden');
-    statsRow.classList.add('hidden');
+    badge.classList.add('hidden'); statsRow.classList.add('hidden');
   }
 }
 
@@ -449,7 +678,6 @@ async function pingAPI() {
     { id: 'model', label: t('ping_model'), status: 'wait' },
   ];
 
-  // Show ping state
   ['idle', 'loading', 'success', 'error', 'ping'].forEach(s => {
     document.getElementById(`state-${s}`).classList.toggle('hidden', s !== 'ping');
   });
@@ -469,234 +697,126 @@ async function pingAPI() {
     `).join('');
   }
   renderSteps();
-
   const base = normalizeBase(c.baseUrl);
   let allOk = true;
 
-  // Step 1: DNS — just try to connect
   steps[0].status = 'running'; steps[0].detail = t('ping_running'); renderSteps();
   try {
     const t0 = performance.now();
     await fetch(base, { method: 'HEAD', mode: 'no-cors' });
-    steps[0].status = 'ok';
-    steps[0].detail = t('ping_dns_ok') + ` (${Math.round(performance.now() - t0)}ms)`;
-  } catch (e) {
-    steps[0].status = 'fail'; steps[0].detail = e.message; allOk = false;
-  }
+    steps[0].status = 'ok'; steps[0].detail = t('ping_dns_ok') + ` (${Math.round(performance.now() - t0)}ms)`;
+  } catch (e) { steps[0].status = 'fail'; steps[0].detail = e.message; allOk = false; }
   renderSteps();
   if (!allOk) { finishPing(false); return; }
 
-  // Step 2: TLS/HTTPS — try GET on base
   steps[1].status = 'running'; steps[1].detail = t('ping_running'); renderSteps();
   try {
     const t0 = performance.now();
-    const res = await fetch(`${base}/models`, {
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${c.apiKey}` }
-    });
-    steps[1].status = 'ok';
-    steps[1].detail = t('ping_tls_ok') + ` (${Math.round(performance.now() - t0)}ms)`;
+    const res = await fetch(`${base}/models`, { headers: { 'Authorization': `Bearer ${c.apiKey}` } });
+    steps[1].status = 'ok'; steps[1].detail = t('ping_tls_ok') + ` (${Math.round(performance.now() - t0)}ms)`;
 
-    // Step 3: Auth — check if 401/403
     steps[2].status = 'running'; steps[2].detail = t('ping_running'); renderSteps();
     if (res.status === 401 || res.status === 403) {
-      steps[2].status = 'fail';
-      steps[2].detail = `HTTP ${res.status} — ` + (currentLang === 'zh' ? 'API Key 无效或已过期' : 'Invalid or expired API Key');
-      allOk = false;
+      steps[2].status = 'fail'; steps[2].detail = `HTTP ${res.status} — ` + (currentLang === 'zh' ? 'API Key 无效或已过期' : 'Invalid or expired API Key'); allOk = false;
     } else {
-      steps[2].status = 'ok';
-      steps[2].detail = t('ping_auth_ok') + ` (HTTP ${res.status})`;
-
-      // Step 4: Model check
+      steps[2].status = 'ok'; steps[2].detail = t('ping_auth_ok') + ` (HTTP ${res.status})`;
       steps[3].status = 'running'; steps[3].detail = t('ping_running'); renderSteps();
       if (res.ok && c.model) {
         try {
           const data = await res.json();
           const models = data.data?.map(m => m.id) || [];
           if (models.length === 0 || models.includes(c.model)) {
-            steps[3].status = 'ok';
-            steps[3].detail = t('ping_model_ok') + ` — ${c.model}`;
+            steps[3].status = 'ok'; steps[3].detail = t('ping_model_ok') + ` — ${c.model}`;
           } else {
-            steps[3].status = 'fail';
-            steps[3].detail = (currentLang === 'zh' ? '模型不在可用列表中: ' : 'Model not in list: ') + models.slice(0, 5).join(', ') + (models.length > 5 ? '…' : '');
-            allOk = false;
+            steps[3].status = 'fail'; steps[3].detail = (currentLang === 'zh' ? '模型不在列表: ' : 'Not in list: ') + models.slice(0, 8).join(', '); allOk = false;
           }
-        } catch {
-          steps[3].status = 'ok';
-          steps[3].detail = currentLang === 'zh' ? '无法获取模型列表，但连接正常' : 'Cannot list models, but connection OK';
-        }
-      } else if (!c.model) {
-        steps[3].status = 'ok';
-        steps[3].detail = currentLang === 'zh' ? '未指定模型，跳过检查' : 'No model specified';
+        } catch { steps[3].status = 'ok'; steps[3].detail = currentLang === 'zh' ? '连接正常' : 'Connection OK'; }
       } else {
-        steps[3].status = 'ok';
-        steps[3].detail = currentLang === 'zh' ? '连接正常（无法获取模型列表）' : 'Connected (model list unavailable)';
+        steps[3].status = 'ok'; steps[3].detail = currentLang === 'zh' ? '连接正常' : 'Connection OK';
       }
     }
-  } catch (e) {
-    steps[1].status = 'fail';
-    steps[1].detail = e.message;
-    allOk = false;
-  }
-  renderSteps();
-  finishPing(allOk);
+  } catch (e) { steps[1].status = 'fail'; steps[1].detail = e.message; allOk = false; }
+  renderSteps(); finishPing(allOk);
 }
 
-function finishPing(allOk) {
+function finishPing(ok) {
   const badge = document.getElementById('status-badge');
-  badge.className = allOk ? 'status-badge success' : 'status-badge error';
+  badge.className = ok ? 'status-badge success' : 'status-badge error';
   badge.classList.remove('hidden');
-  document.getElementById('status-text').textContent = allOk ? t('status_ok') : t('status_fail');
+  document.getElementById('status-text').textContent = ok ? t('status_ok') : t('status_fail');
 }
 
-function stepIcon(status) {
-  switch (status) {
-    case 'ok': return '✓';
-    case 'fail': return '✗';
-    case 'running': return '<div class="mini-spinner"></div>';
-    default: return '○';
-  }
+function stepIcon(s) {
+  if (s === 'ok') return '✓'; if (s === 'fail') return '✗';
+  if (s === 'running') return '<div class="mini-spinner"></div>'; return '○';
 }
 
 // ══════════════════════════════════
-//  FETCH MODELS
-// ══════════════════════════════════
-async function fetchModels() {
-  const baseUrl = document.getElementById('base-url').value.trim();
-  const apiKey = document.getElementById('api-key').value.trim();
-  if (!baseUrl) { showToast(t('toast_need_url')); return; }
-  if (!apiKey) { showToast(t('toast_need_key')); return; }
-
-  const btn = document.getElementById('btn-fetch-models');
-  const dropdown = document.getElementById('model-dropdown');
-  const list = document.getElementById('model-list');
-  const countEl = document.getElementById('model-count');
-
-  btn.classList.add('spinning');
-  dropdown.classList.remove('hidden');
-  list.innerHTML = `<div class="model-loading">${t('models_fetching')}</div>`;
-  countEl.textContent = '';
-
-  try {
-    const base = normalizeBase(baseUrl);
-    const res = await fetch(`${base}/models`, {
-      headers: { 'Authorization': `Bearer ${apiKey}` }
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const models = (data.data || []).map(m => m.id).sort();
-
-    if (models.length === 0) {
-      list.innerHTML = `<div class="model-loading">${t('models_none')}</div>`;
-      countEl.textContent = '0';
-    } else {
-      const current = document.getElementById('model-name').value.trim();
-      countEl.textContent = models.length;
-      list.innerHTML = models.map(id => `
-        <button class="model-option${id === current ? ' selected' : ''}" onclick="selectModel('${esc(id)}')">
-          <span class="model-option-id">${esc(id)}</span>
-        </button>
-      `).join('');
-    }
-  } catch (e) {
-    list.innerHTML = `<div class="model-loading">${t('models_error')}: ${esc(e.message)}</div>`;
-  } finally {
-    btn.classList.remove('spinning');
-  }
-}
-
-function selectModel(id) {
-  document.getElementById('model-name').value = id;
-  document.getElementById('model-dropdown').classList.add('hidden');
-  showToast('✓ ' + id);
-}
-
-// Helper: fetch models for a given base/key (used by test-all)
-async function fetchModelsForProvider(baseUrl, apiKey) {
-  try {
-    const base = normalizeBase(baseUrl);
-    const res = await fetch(`${base}/models`, {
-      headers: { 'Authorization': `Bearer ${apiKey}` }
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return (data.data || []).map(m => m.id).sort();
-  } catch { return []; }
-}
-
-// ══════════════════════════════════
-//  TEST ALL PROVIDERS
+//  TEST ALL PROVIDERS (batch)
 // ══════════════════════════════════
 let testAllAbort = false;
 
 async function testAllProviders() {
-  const saved = await getSaved();
-  if (!saved.length) { showToast(t('testall_empty')); return; }
+  const providers = await getProviders();
+  if (!providers.length) { showToast(t('testall_empty')); return; }
 
   testAllAbort = false;
   document.getElementById('testall-modal').classList.remove('hidden');
-
   const container = document.getElementById('testall-results');
-  const summary = document.getElementById('testall-summary');
-  let totalOk = 0, totalFail = 0;
+  const summaryEl = document.getElementById('testall-summary');
+  let totalOk = 0, totalFail = 0, totalSkip = 0;
 
-  // Build initial structure
-  const providerData = saved.map(s => ({
-    id: s.id, name: s.name, baseUrl: s.baseUrl, apiKey: s._decryptedKey,
-    savedModel: s.model, models: [], status: 'run', results: []
+  const pData = providers.map(p => ({
+    id: p.id, name: p.name, baseUrl: p.baseUrl, apiKey: p._key,
+    models: (p.models || []).slice(), // ALL models, no limit
+    status: 'run', results: []
   }));
 
   function render() {
-    container.innerHTML = providerData.map(p => `
+    container.innerHTML = pData.map(p => `
       <div class="testall-provider">
         <div class="testall-provider-header">
           <span class="testall-provider-name">${esc(p.name)}</span>
           <span class="testall-provider-url">${esc(extractHost(p.baseUrl))}</span>
+          <span class="testall-provider-count">${p.models.length} ${t('provider_models_count')}</span>
           <span class="testall-provider-status s-${p.status}">${providerStatusText(p.status)}</span>
         </div>
         <div class="testall-models">
-          ${p.results.length === 0 && p.status === 'run'
-            ? `<div class="testall-model-row"><div class="testall-model-name" style="color:var(--text-muted)">${t('testall_fetching')}</div><div class="testall-model-status ms-run"><span class="mini-spinner-sm"></span></div></div>`
+          ${p.models.length === 0 && p.status !== 'run'
+            ? `<div class="testall-model-row"><div class="testall-model-name" style="color:var(--text-muted)">${t('testall_skip')}</div></div>`
             : p.results.map(r => `
               <div class="testall-model-row">
                 <div class="testall-model-name">${esc(r.model)}</div>
                 <div class="testall-model-latency">${r.latency ? r.latency + 'ms' : ''}</div>
-                <div class="testall-model-status ms-${r.status}">${modelStatusText(r.status)}</div>
+                <div class="testall-model-status ms-${r.status}">${modelStatusIcon(r.status)}</div>
               </div>
             `).join('')
           }
-          ${p.results.length === 0 && p.status === 'fail'
-            ? `<div class="testall-model-row"><div class="testall-model-name" style="color:var(--error)">${t('testall_nomodels')}</div></div>`
+          ${p.models.length > 0 && p.results.length === 0 && p.status === 'run'
+            ? `<div class="testall-model-row"><div class="testall-model-name" style="color:var(--text-muted)">${t('testall_testing')}</div><div class="testall-model-status ms-run"><span class="mini-spinner-sm"></span></div></div>`
             : ''
           }
         </div>
       </div>
     `).join('');
 
-    summary.innerHTML = `
+    summaryEl.innerHTML = `
       <span class="sum-ok">✓ ${totalOk} ${t('testall_pass')}</span>
       <span class="sum-fail">✗ ${totalFail} ${t('testall_fail')}</span>
+      ${totalSkip > 0 ? `<span style="color:var(--text-muted)">— ${totalSkip} ${t('testall_skip')}</span>` : ''}
     `;
   }
   render();
 
-  // Process each provider
-  for (const p of providerData) {
+  for (const p of pData) {
     if (testAllAbort) break;
 
-    // Fetch models
-    const models = await fetchModelsForProvider(p.baseUrl, p.apiKey);
-    const modelsToTest = models.length > 0 ? models.slice(0, 10) : (p.savedModel ? [p.savedModel] : []);
-
-    if (modelsToTest.length === 0) {
-      p.status = 'fail';
-      totalFail++;
-      render();
-      continue;
+    if (p.models.length === 0) {
+      p.status = 'fail'; totalSkip++;
+      render(); continue;
     }
 
-    // Test each model
-    p.results = modelsToTest.map(m => ({ model: m, status: 'wait', latency: null }));
+    p.results = p.models.map(m => ({ model: m, status: 'wait', latency: null }));
     render();
 
     let providerOk = true;
@@ -719,20 +839,9 @@ async function testAllProviders() {
         });
         const elapsed = Math.round(performance.now() - t0);
         p.results[i].latency = elapsed;
-
-        if (res.ok) {
-          p.results[i].status = 'ok';
-          totalOk++;
-        } else {
-          p.results[i].status = 'fail';
-          totalFail++;
-          providerOk = false;
-        }
-      } catch {
-        p.results[i].status = 'fail';
-        totalFail++;
-        providerOk = false;
-      }
+        if (res.ok) { p.results[i].status = 'ok'; totalOk++; }
+        else { p.results[i].status = 'fail'; totalFail++; providerOk = false; }
+      } catch { p.results[i].status = 'fail'; totalFail++; providerOk = false; }
       render();
     }
     p.status = providerOk ? 'ok' : 'fail';
@@ -746,11 +855,9 @@ function providerStatusText(s) {
   return t('testall_running');
 }
 
-function modelStatusText(s) {
-  if (s === 'ok') return '✓';
-  if (s === 'fail') return '✗';
-  if (s === 'run') return '<span class="mini-spinner-sm"></span>';
-  return '○';
+function modelStatusIcon(s) {
+  if (s === 'ok') return '✓'; if (s === 'fail') return '✗';
+  if (s === 'run') return '<span class="mini-spinner-sm"></span>'; return '○';
 }
 
 function closeTestAllModal() {
@@ -759,98 +866,7 @@ function closeTestAllModal() {
 }
 
 // ══════════════════════════════════
-//  SAVE / LOAD (encrypted)
-// ══════════════════════════════════
-async function getSaved() {
-  try {
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-    // Decrypt API keys on load
-    const decrypted = [];
-    for (const item of raw) {
-      decrypted.push({
-        ...item,
-        _decryptedKey: await decryptText(item.apiKey),
-        _decryptedUrl: item.baseUrl // URL is not encrypted (not secret)
-      });
-    }
-    return decrypted;
-  } catch { return []; }
-}
-
-function getRawSaved() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; }
-}
-
-async function setSaved(arr) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
-}
-
-async function saveConfig() {
-  const c = getConfig();
-  if (!c.baseUrl || !c.apiKey) { showToast(t('toast_need_config')); return; }
-  const name = prompt(t('prompt_name'), extractHost(c.baseUrl));
-  if (!name) return;
-
-  const encApiKey = await encryptText(c.apiKey);
-  const raw = getRawSaved();
-  raw.push({
-    id: Date.now(),
-    name,
-    baseUrl: c.baseUrl,
-    apiKey: encApiKey,
-    model: c.model,
-    ts: new Date().toISOString()
-  });
-  await setSaved(raw);
-  loadSavedConfigs();
-  showToast(t('toast_saved'));
-}
-
-function extractHost(url) { try { return new URL(url).hostname; } catch { return 'config'; } }
-
-async function loadSavedConfigs() {
-  const saved = await getSaved();
-  const container = document.getElementById('saved-list');
-  if (!saved.length) {
-    container.innerHTML = `<div class="empty-state"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3"><rect x="4" y="4" width="24" height="24" rx="3"/><path d="M10 16h12M16 10v12" stroke-dasharray="2 2"/></svg><p>${t('empty_saved')}</p></div>`;
-    return;
-  }
-  const maskKey = (k) => k ? k.substring(0, 5) + '•••' + k.substring(k.length - 3) : '•••';
-  container.innerHTML = saved.map(s => `
-    <div class="saved-item" onclick="loadConfigById(${s.id})">
-      <div class="saved-item-info">
-        <div class="saved-item-name">${esc(s.name)}</div>
-        <div class="saved-item-meta">${esc(s.baseUrl)} · ${esc(s.model || '—')} · Key: ${maskKey(s._decryptedKey)}</div>
-      </div>
-      <div class="saved-item-actions" onclick="event.stopPropagation()">
-        <button class="btn-icon" onclick="deleteConfig(${s.id})" title="Delete">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 3h8M4.5 3V2h3v1M3 3v7.5a.5.5 0 00.5.5h5a.5.5 0 00.5-.5V3"/></svg>
-        </button>
-      </div>
-    </div>
-  `).join('');
-}
-
-async function loadConfigById(id) {
-  const saved = await getSaved();
-  const s = saved.find(x => x.id === id);
-  if (!s) return;
-  document.getElementById('base-url').value = s.baseUrl;
-  document.getElementById('api-key').value = s._decryptedKey;
-  document.getElementById('model-name').value = s.model || '';
-  showToast(t('toast_loaded') + ` — ${s.name}`);
-}
-
-async function deleteConfig(id) {
-  if (!confirm(t('confirm_delete'))) return;
-  const raw = getRawSaved().filter(s => s.id !== id);
-  await setSaved(raw);
-  loadSavedConfigs();
-  showToast(t('toast_deleted'));
-}
-
-// ══════════════════════════════════
-//  IMPORT
+//  IMPORT (auto-save)
 // ══════════════════════════════════
 function importConfigs() { document.getElementById('import-file').click(); }
 
@@ -859,14 +875,14 @@ function handleImportFile(e) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = ev => {
-    try { parseAndImport(ev.target.result, file.name); }
+    try { parseAndAutoSave(ev.target.result, file.name); }
     catch { showToast(t('toast_import_fail')); }
   };
   reader.readAsText(file);
   e.target.value = '';
 }
 
-function parseAndImport(text, fname) {
+async function parseAndAutoSave(text, fname) {
   let cfg = {};
   if (fname.endsWith('.json')) {
     const j = JSON.parse(text);
@@ -901,12 +917,33 @@ function parseAndImport(text, fname) {
       else if (k.includes('model')) cfg.model = v;
     });
   }
-  if (cfg.baseUrl || cfg.apiKey) {
-    if (cfg.baseUrl) document.getElementById('base-url').value = cfg.baseUrl;
-    if (cfg.apiKey) document.getElementById('api-key').value = cfg.apiKey;
-    if (cfg.model) document.getElementById('model-name').value = cfg.model;
-    showToast(t('toast_imported'));
-  } else { showToast(t('toast_import_fail')); }
+
+  if (!cfg.baseUrl || !cfg.apiKey) { showToast(t('toast_import_fail')); return; }
+
+  // Fill form
+  document.getElementById('base-url').value = cfg.baseUrl;
+  document.getElementById('api-key').value = cfg.apiKey;
+  if (cfg.model) document.getElementById('model-name').value = cfg.model;
+
+  // Auto-save: fetch models then save
+  showToast(t('toast_fetching_models'));
+  const models = await fetchModelsRaw(cfg.baseUrl, cfg.apiKey);
+  const modelList = models.length > 0 ? models : (cfg.model ? [cfg.model] : []);
+
+  const encKey = await encryptText(cfg.apiKey);
+  const raw = getRawProviders();
+  const name = extractHost(cfg.baseUrl);
+  raw.push({
+    id: Date.now(),
+    name,
+    baseUrl: cfg.baseUrl,
+    apiKey: encKey,
+    models: modelList,
+    ts: new Date().toISOString()
+  });
+  setProviders(raw);
+  renderProviders();
+  showToast(t('toast_imported') + ` — ${name} (${modelList.length} ${currentLang === 'zh' ? '个模型' : 'models'})`);
 }
 
 // ══════════════════════════════════
@@ -918,38 +955,14 @@ function exportConfig(format) {
   const base = c.baseUrl.replace(/\/+$/, '');
   let content = '', filename = '', title = '';
   switch (format) {
-    case 'openai-env':
-      title = 'OpenAI .env'; filename = '.env';
-      content = `OPENAI_API_KEY="${c.apiKey}"\nOPENAI_BASE_URL="${base}"\nOPENAI_MODEL="${c.model}"`;
-      break;
-    case 'openclaw':
-      title = 'OpenClaw'; filename = 'openclaw_config.json';
-      content = JSON.stringify({ provider: 'openai-compatible', api_key: c.apiKey, base_url: base, model: c.model, max_tokens: 4096 }, null, 2);
-      break;
-    case 'codex':
-      title = 'Codex CLI'; filename = 'codex_config.toml';
-      content = `[model]\nname = "${c.model}"\n\n[provider]\ntype = "openai"\napi_key = "${c.apiKey}"\nbase_url = "${base}"`;
-      break;
-    case 'claude-code':
-      title = 'Claude Code'; filename = 'claude_code.env';
-      content = `OPENAI_API_KEY="${c.apiKey}"\nOPENAI_BASE_URL="${base}"\n\n# claude config set --global model "${c.model}"\n# claude config set --global provider "openai"`;
-      break;
-    case 'antigravity':
-      title = 'Antigravity'; filename = 'antigravity_config.json';
-      content = JSON.stringify({ provider: 'openai-compatible', api_key: c.apiKey, base_url: base, model: c.model, settings: { temperature: 0.7, max_tokens: 4096 } }, null, 2);
-      break;
-    case 'curl':
-      title = 'cURL'; filename = 'test_api.sh';
-      content = `curl "${base}/chat/completions" \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: Bearer ${c.apiKey}" \\\n  -d '{\n    "model": "${c.model}",\n    "messages": [{"role":"user","content":"${(c.prompt||'Hello!').replace(/"/g,'\\"')}"}],\n    "max_tokens": 256\n  }'`;
-      break;
-    case 'python':
-      title = 'Python'; filename = 'test_api.py';
-      content = `from openai import OpenAI\n\nclient = OpenAI(\n    api_key="${c.apiKey}",\n    base_url="${base}"\n)\n\nres = client.chat.completions.create(\n    model="${c.model}",\n    messages=[{"role":"user","content":"${(c.prompt||'Hello!').replace(/"/g,'\\"')}"}],\n    max_tokens=256\n)\nprint(res.choices[0].message.content)`;
-      break;
-    case 'json':
-      title = 'JSON'; filename = 'api_config.json';
-      content = JSON.stringify({ base_url: base, api_key: c.apiKey, model: c.model, created_at: new Date().toISOString() }, null, 2);
-      break;
+    case 'openai-env': title = 'OpenAI .env'; filename = '.env'; content = `OPENAI_API_KEY="${c.apiKey}"\nOPENAI_BASE_URL="${base}"\nOPENAI_MODEL="${c.model}"`; break;
+    case 'openclaw': title = 'OpenClaw'; filename = 'openclaw_config.json'; content = JSON.stringify({ provider: 'openai-compatible', api_key: c.apiKey, base_url: base, model: c.model, max_tokens: 4096 }, null, 2); break;
+    case 'codex': title = 'Codex CLI'; filename = 'codex_config.toml'; content = `[model]\nname = "${c.model}"\n\n[provider]\ntype = "openai"\napi_key = "${c.apiKey}"\nbase_url = "${base}"`; break;
+    case 'claude-code': title = 'Claude Code'; filename = 'claude_code.env'; content = `OPENAI_API_KEY="${c.apiKey}"\nOPENAI_BASE_URL="${base}"\n\n# claude config set --global model "${c.model}"\n# claude config set --global provider "openai"`; break;
+    case 'antigravity': title = 'Antigravity'; filename = 'antigravity_config.json'; content = JSON.stringify({ provider: 'openai-compatible', api_key: c.apiKey, base_url: base, model: c.model, settings: { temperature: 0.7, max_tokens: 4096 } }, null, 2); break;
+    case 'curl': title = 'cURL'; filename = 'test_api.sh'; content = `curl "${base}/chat/completions" \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: Bearer ${c.apiKey}" \\\n  -d '{\n    "model": "${c.model}",\n    "messages": [{"role":"user","content":"${(c.prompt||'Hello!').replace(/"/g,'\\"')}"}],\n    "max_tokens": 256\n  }'`; break;
+    case 'python': title = 'Python'; filename = 'test_api.py'; content = `from openai import OpenAI\n\nclient = OpenAI(\n    api_key="${c.apiKey}",\n    base_url="${base}"\n)\n\nres = client.chat.completions.create(\n    model="${c.model}",\n    messages=[{"role":"user","content":"${(c.prompt||'Hello!').replace(/"/g,'\\"')}"}],\n    max_tokens=256\n)\nprint(res.choices[0].message.content)`; break;
+    case 'json': title = 'JSON'; filename = 'api_config.json'; content = JSON.stringify({ base_url: base, api_key: c.apiKey, model: c.model, created_at: new Date().toISOString() }, null, 2); break;
   }
   currentExportData = { content, filename };
   document.getElementById('modal-title').textContent = title;
@@ -985,17 +998,12 @@ function startOnboarding() {
 function endOnboarding() {
   document.getElementById('onboarding-overlay').classList.add('hidden');
   localStorage.setItem('api-tester-onboarded', '1');
-  // Remove any highlights
   document.querySelectorAll('.onboarding-highlight').forEach(el => el.classList.remove('onboarding-highlight'));
 }
 
 function nextOnboardingStep() {
   onboardingStep++;
-  const steps = i18n[currentLang].onboard;
-  if (onboardingStep >= steps.length) {
-    endOnboarding();
-    return;
-  }
+  if (onboardingStep >= i18n[currentLang].onboard.length) { endOnboarding(); return; }
   renderOnboardingStep();
 }
 
@@ -1005,11 +1013,9 @@ function renderOnboardingStep() {
   const tooltip = document.getElementById('onboarding-tooltip');
   const backdrop = document.getElementById('onboarding-backdrop');
 
-  // Update content
   document.getElementById('onboarding-title').textContent = step.title;
   document.getElementById('onboarding-desc').textContent = step.desc;
 
-  // Update step indicator
   const indicator = document.getElementById('onboarding-step-indicator');
   indicator.innerHTML = steps.map((_, i) => {
     let cls = 'step-dot';
@@ -1018,14 +1024,11 @@ function renderOnboardingStep() {
     return `<span class="${cls}"></span>`;
   }).join('');
 
-  // Update button text for last step
   const nextBtn = document.getElementById('onboarding-next');
-  const isLast = onboardingStep === steps.length - 1;
-  nextBtn.querySelector('span').textContent = isLast
+  nextBtn.querySelector('span').textContent = onboardingStep === steps.length - 1
     ? (currentLang === 'zh' ? '开始使用' : 'Get Started')
     : t('onboarding_next');
 
-  // Remove old highlights
   document.querySelectorAll('.onboarding-highlight').forEach(el => el.classList.remove('onboarding-highlight'));
 
   if (step.target) {
@@ -1033,41 +1036,20 @@ function renderOnboardingStep() {
     if (target) {
       target.classList.add('onboarding-highlight');
       target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      backdrop.style.display = 'none'; // Hide full backdrop when highlighting
-
-      // Position tooltip near the target
+      backdrop.style.display = 'none';
       setTimeout(() => {
         const rect = target.getBoundingClientRect();
-        const tooltipRect = tooltip.getBoundingClientRect();
-
-        let top = rect.bottom + 12;
-        let left = rect.left;
-
-        // Keep tooltip in viewport
-        if (top + tooltipRect.height > window.innerHeight - 20) {
-          top = rect.top - tooltipRect.height - 12;
-        }
-        if (left + tooltipRect.width > window.innerWidth - 20) {
-          left = window.innerWidth - tooltipRect.width - 20;
-        }
+        let top = rect.bottom + 12, left = rect.left;
+        const tw = tooltip.getBoundingClientRect().width, th = tooltip.getBoundingClientRect().height;
+        if (top + th > window.innerHeight - 20) top = rect.top - th - 12;
+        if (left + tw > window.innerWidth - 20) left = window.innerWidth - tw - 20;
         if (left < 20) left = 20;
-
-        tooltip.style.top = top + 'px';
-        tooltip.style.left = left + 'px';
+        tooltip.style.top = top + 'px'; tooltip.style.left = left + 'px'; tooltip.style.transform = 'none';
       }, 100);
     }
   } else {
-    // Center tooltip (welcome / final step)
     backdrop.style.display = 'block';
-    tooltip.style.top = '50%';
-    tooltip.style.left = '50%';
-    tooltip.style.transform = 'translate(-50%, -50%)';
-    setTimeout(() => { tooltip.style.transform = 'translate(-50%, -50%)'; }, 10);
-  }
-
-  // Reset transform when targeting
-  if (step.target) {
-    tooltip.style.transform = 'none';
+    tooltip.style.top = '50%'; tooltip.style.left = '50%'; tooltip.style.transform = 'translate(-50%, -50%)';
   }
 }
 
