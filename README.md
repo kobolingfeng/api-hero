@@ -5,8 +5,7 @@
 ## Links
 
 - 🌐 **在线使用**：[api-hero-tester.netlify.app](https://api-hero-tester.netlify.app)
-- 💬 **Linux.do**：[https://linux.do/t/topic/596078](https://linux.do/t/topic/596078)
-- 📦 **GitHub**：[github.com/kobolingfeng/api-hero](https://github.com/kobolingfeng/api-hero)
+- 💬 **Linux.do**：[linux.do](https://linux.do)
 
 ## 功能
 
