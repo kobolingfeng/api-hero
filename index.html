@@ -382,7 +382,15 @@
   <div class="toast" id="toast"></div>
 
   <footer class="footer">
-    <p data-i18n="footer_text">纯静态 · AES-GCM 加密 · 无服务器 · 无追踪</p>
+    <div class="proxy-toggle">
+      <label class="toggle-label" for="proxy-toggle-input">
+        <input type="checkbox" id="proxy-toggle-input" onchange="toggleProxy(this.checked)">
+        <span class="toggle-switch"></span>
+        <span data-i18n="proxy_label">CORS 代理</span>
+      </label>
+      <span class="proxy-hint" data-i18n="proxy_hint">遇到跨域错误时开启，请求将通过服务器中转</span>
+    </div>
+    <p data-i18n="footer_text">纯静态 · AES-GCM 加密 · 无追踪</p>
     <p class="footer-sub">
       <span data-i18n="footer_star">喜欢的话点个</span> <a href="https://github.com/kobolingfeng/api-hero" target="_blank" rel="noopener">⭐ Star</a>
     </p>

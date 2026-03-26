@@ -59,8 +59,10 @@ const i18n = {
     stat_model: '模型',
     export_title: '导出配置',
     export_desc: '将当前配置导出为各平台通用格式',
-    footer_text: '纯静态 · AES-GCM 加密 · 无服务器 · 无追踪',
+    footer_text: '纯静态 · AES-GCM 加密 · 无追踪',
     footer_star: '喜欢的话点个',
+    proxy_label: 'CORS 代理',
+    proxy_hint: '遇到跨域错误时开启，请求将通过服务器中转',
     onboarding_skip: '跳过',
     onboarding_next: '下一步',
     toast_saved: '✓ 已保存（密钥已加密）',
@@ -162,8 +164,10 @@ const i18n = {
     stat_model: 'Model',
     export_title: 'EXPORT',
     export_desc: 'Export current config for various platforms',
-    footer_text: 'Static · AES-GCM Encrypted · No Server · No Tracking',
+    footer_text: 'Static · AES-GCM Encrypted · No Tracking',
     footer_star: 'Like it? Star on',
+    proxy_label: 'CORS Proxy',
+    proxy_hint: 'Enable if you get cross-origin errors',
     onboarding_skip: 'Skip',
     onboarding_next: 'Next',
     toast_saved: '✓ Saved (key encrypted)',
@@ -256,6 +260,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderProviders();
   setupListeners();
   loadLastUsed();
+  // Init proxy toggle
+  document.getElementById('proxy-toggle-input').checked = useProxy;
   if (!localStorage.getItem('api-tester-onboarded')) {
     setTimeout(() => startOnboarding(), 600);
   }
@@ -422,13 +428,20 @@ function extractHost(url) { try { return new URL(url).hostname; } catch { return
 // ══════════════════════════════════
 //  PROXY FETCH (bypass CORS)
 // ══════════════════════════════════
-// When deployed on Netlify, use the serverless proxy function
-// When running locally (file://), try direct fetch first, then proxy
+// Proxy toggle — defaults OFF, user enables if CORS blocks them
+let useProxy = localStorage.getItem('api-tester-proxy') === 'true';
+
 function getProxyUrl() {
-  if (location.protocol === 'https:' || (location.hostname && location.hostname !== 'localhost' && location.hostname !== '')) {
-    return '/api/proxy';
-  }
-  return null; // local file, no proxy available
+  if (!useProxy) return null; // direct requests from user's browser
+  return '/api/proxy';
+}
+
+function toggleProxy(checked) {
+  useProxy = checked;
+  localStorage.setItem('api-tester-proxy', checked ? 'true' : 'false');
+  showToast(checked
+    ? (currentLang === 'zh' ? '已开启 CORS 代理，请求将通过服务器中转' : 'CORS proxy enabled')
+    : (currentLang === 'zh' ? '已关闭 CORS 代理，请求直接从浏览器发出' : 'CORS proxy disabled, direct requests'));
 }
 
 async function proxyFetch(url, options = {}) {
