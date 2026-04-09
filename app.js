@@ -45,6 +45,10 @@ const i18n = {
     btn_test: '测试连接',
     btn_ping: '连通检测',
     btn_save: '保存服务商',
+    btn_testall: '测试全部',
+    btn_export_all: '导出全部',
+    btn_import: '导入',
+    btn_delete_all: '删除全部',
     btn_copy: '复制',
     btn_download: '下载',
     saved_title: '服务商',
@@ -68,6 +72,7 @@ const i18n = {
     onboarding_next: '下一步',
     toast_saved: '✓ 已保存（密钥已加密）',
     toast_deleted: '✓ 已删除',
+    toast_deleted_all: '✓ 已清空全部服务商',
     toast_loaded: '✓ 已加载',
     toast_copied: '✓ 已复制',
     toast_imported: '✓ 导入并保存成功',
@@ -81,6 +86,7 @@ const i18n = {
     prompt_name: '为该服务商命名：',
     prompt_rename: '输入新名称：',
     confirm_delete: '确认删除该服务商及其所有配置？',
+    confirm_delete_all: '确认删除全部已保存服务商？',
     status_ok: '正常',
     status_fail: '失败',
     ping_dns: 'DNS 解析',
@@ -151,6 +157,10 @@ const i18n = {
     btn_test: 'Test',
     btn_ping: 'Ping',
     btn_save: 'Save Provider',
+    btn_testall: 'Test All',
+    btn_export_all: 'Export All',
+    btn_import: 'Import',
+    btn_delete_all: 'Delete All',
     btn_copy: 'Copy',
     btn_download: 'Download',
     saved_title: 'PROVIDERS',
@@ -174,6 +184,7 @@ const i18n = {
     onboarding_next: 'Next',
     toast_saved: '✓ Saved (key encrypted)',
     toast_deleted: '✓ Deleted',
+    toast_deleted_all: '✓ All providers cleared',
     toast_loaded: '✓ Loaded',
     toast_copied: '✓ Copied',
     toast_imported: '✓ Imported & saved',
@@ -187,6 +198,7 @@ const i18n = {
     prompt_name: 'Name this provider:',
     prompt_rename: 'Enter new name:',
     confirm_delete: 'Delete this provider and all its config?',
+    confirm_delete_all: 'Delete all saved providers?',
     status_ok: 'OK',
     status_fail: 'FAIL',
     ping_dns: 'DNS Resolution',
@@ -235,6 +247,10 @@ function applyLang() {
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     if (i18n[currentLang][key]) el.textContent = i18n[currentLang][key];
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    const key = el.getAttribute('data-i18n-title');
+    if (i18n[currentLang][key]) el.title = i18n[currentLang][key];
   });
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
     const key = el.getAttribute('data-i18n-placeholder');
@@ -596,6 +612,9 @@ async function renderProviders() {
             </div>
           </div>
           <div class="provider-actions" onclick="event.stopPropagation()">
+            <button class="btn-icon btn-icon-sm" onclick="testProviderAllModels(${p.id})" title="${t('btn_testall')}">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8h12"/><path d="M9 3l5 5-5 5"/></svg>
+            </button>
             <button class="btn-icon btn-icon-sm" onclick="refreshProviderModels(${p.id})" title="${t('provider_refresh')}">
               <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8a6 6 0 0111.5-2.3"/><path d="M14 8a6 6 0 01-11.5 2.3"/><path d="M13 2v4h-4"/><path d="M3 14v-4h4"/></svg>
             </button>
@@ -663,7 +682,20 @@ async function deleteProvider(id) {
     expandedProviders.delete(id);
     setProviders(raw);
     renderProviders();
+    syncProbeMatchesAfterProviderChange();
     showToast(t('toast_deleted'));
+  });
+}
+
+function deleteAllProviders() {
+  const raw = getRawProviders();
+  if (!raw.length) return;
+  showConfirmModal(t('confirm_delete_all'), () => {
+    expandedProviders.clear();
+    setProviders([]);
+    renderProviders();
+    syncProbeMatchesAfterProviderChange();
+    showToast(t('toast_deleted_all'));
   });
 }
 
@@ -919,13 +951,39 @@ async function testAllProviders() {
   const providers = await getProviders();
   if (!providers.length) { showToast(t('testall_empty')); return; }
 
+  await runProviderModelTests(providers.map(p => ({
+    id: p.id,
+    name: p.name,
+    baseUrl: p.baseUrl,
+    apiKey: p._key,
+    models: (p.models || []).slice()
+  })));
+}
+
+async function testProviderAllModels(id) {
+  const providers = await getProviders();
+  const p = providers.find(x => x.id === id);
+  if (!p) return;
+
+  await runProviderModelTests([{
+    id: p.id,
+    name: p.name,
+    baseUrl: p.baseUrl,
+    apiKey: p._key,
+    models: (p.models || []).slice()
+  }]);
+}
+
+async function runProviderModelTests(providerList) {
+  if (!providerList.length) { showToast(t('testall_empty')); return; }
+
   testAllAbort = false;
   document.getElementById('testall-modal').classList.remove('hidden');
   const container = document.getElementById('testall-results');
   const summaryEl = document.getElementById('testall-summary');
   let totalOk = 0, totalFail = 0, totalSkip = 0;
 
-  const pData = providers.map(p => ({
+  const pData = providerList.map(p => ({
     id: p.id, name: p.name, baseUrl: p.baseUrl, apiKey: p._key,
     models: (p.models || []).slice(), // ALL models, no limit
     status: 'run', results: []
@@ -1032,22 +1090,64 @@ function importConfigs() { document.getElementById('import-file').click(); }
 function handleImportFile(e) {
   const file = e.target.files[0];
   if (!file) return;
+  e.target.value = '';
+
+  if (file.name.toLowerCase().endsWith('.zip')) {
+    importZipFile(file).catch(() => showToast(t('toast_import_fail')));
+    return;
+  }
+
   const reader = new FileReader();
   reader.onload = ev => {
     try { parseAndAutoSave(ev.target.result, file.name); }
     catch { showToast(t('toast_import_fail')); }
   };
   reader.readAsText(file);
-  e.target.value = '';
+}
+
+async function importZipFile(file) {
+  if (typeof JSZip === 'undefined') {
+    showToast(currentLang === 'zh' ? 'JSZip 未加载，请刷新页面' : 'JSZip not loaded');
+    return;
+  }
+
+  const zip = await JSZip.loadAsync(file);
+  const entries = Object.values(zip.files).filter(entry => !entry.dir && entry.name.toLowerCase().endsWith('.json'));
+  if (entries.length === 0) {
+    showToast(t('toast_import_fail'));
+    return;
+  }
+
+  let importedCount = 0;
+  for (const entry of entries) {
+    const text = await entry.async('string');
+    try {
+      await parseAndAutoSave(text, entry.name);
+      importedCount++;
+    } catch {
+      // Skip invalid entry and continue importing remaining JSON files
+    }
+  }
+
+  if (importedCount === 0) {
+    showToast(t('toast_import_fail'));
+    return;
+  }
+
+  showToast(currentLang === 'zh'
+    ? `✓ 已导入 ZIP（${importedCount} 个配置）`
+    : `✓ ZIP imported (${importedCount} configs)`);
 }
 
 async function parseAndAutoSave(text, fname) {
   let cfg = {};
   if (fname.endsWith('.json')) {
     const j = JSON.parse(text);
+    cfg.name = j.name;
     cfg.baseUrl = j.base_url || j.baseUrl || j.OPENAI_BASE_URL || j.api_base || '';
     cfg.apiKey = j.api_key || j.apiKey || j.OPENAI_API_KEY || '';
-    cfg.model = j.model || j.MODEL || j.default_model || '';
+    cfg.model = j.model || '';
+    cfg.models = Array.isArray(j.models) ? j.models : [];
   } else if (fname.endsWith('.env')) {
     text.split('\n').forEach(line => {
       const m = line.match(/^([^#=]+)=(.*)$/);
@@ -1082,16 +1182,24 @@ async function parseAndAutoSave(text, fname) {
   // Fill form
   document.getElementById('base-url').value = cfg.baseUrl;
   document.getElementById('api-key').value = cfg.apiKey;
-  if (cfg.model) document.getElementById('model-name').value = cfg.model;
+  const modelNameEl = document.getElementById('model-name');
+  // Auto-save: build model list from imported fields first
+  let modelList = [];
+  if (cfg.models) {
+    modelList = cfg.models.filter(m => typeof m === 'string' && m.trim());
+  } else if (cfg.model) {
+    modelList = [cfg.model];
+  } else {
+    showToast(t('toast_fetching_models'));
+    modelList = await fetchModelsRaw(cfg.baseUrl, cfg.apiKey);
+  }
 
-  // Auto-save: fetch models then save
-  showToast(t('toast_fetching_models'));
-  const models = await fetchModelsRaw(cfg.baseUrl, cfg.apiKey);
-  const modelList = models.length > 0 ? models : (cfg.model ? [cfg.model] : []);
+  modelNameEl.value = (cfg.model && modelList.includes(cfg.model)) ? cfg.model : modelList ? modelList[0] : '';
 
   const encKey = await encryptText(cfg.apiKey);
   const raw = getRawProviders();
-  const name = extractHost(cfg.baseUrl);
+  const importedName = (cfg.name || '').trim();
+  const name = importedName || extractHost(cfg.baseUrl);
   raw.push({
     id: Date.now(),
     name,
@@ -1102,6 +1210,7 @@ async function parseAndAutoSave(text, fname) {
   });
   setProviders(raw);
   renderProviders();
+  await syncProbeMatchesAfterProviderChange();
   showToast(t('toast_imported') + ` — ${name} (${modelList.length} ${currentLang === 'zh' ? '个模型' : 'models'})`);
 }
 
@@ -1125,7 +1234,7 @@ function generateFormatContent(format, cfg) {
     case 'curl': return { title: 'cURL', filename: 'test_api.sh', content: `curl "${base}/chat/completions" \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: Bearer ${apiKey}" \\\n  -d '{\n    "model": "${model}",\n    "messages": [{"role":"user","content":"${prompt.replace(/"/g, '\\"')}"}],\n    "max_tokens": 256\n  }'` };
     case 'python': return { title: 'Python', filename: 'test_api.py', content: `from openai import OpenAI\n\nclient = OpenAI(\n    api_key="${apiKey}",\n    base_url="${base}"\n)\n\nres = client.chat.completions.create(\n    model="${model}",\n    messages=[{"role":"user","content":"${prompt.replace(/"/g, '\\"')}"}],\n    max_tokens=256\n)\nprint(res.choices[0].message.content)` };
     case 'json': return { title: 'JSON', filename: `${name.replace(/[^a-zA-Z0-9\u4e00-\u9fff_-]/g,'_')}_config.json`, content: JSON.stringify({ name, base_url: base, api_key: apiKey, model, models: cfg.models || [model], created_at: new Date().toISOString() }, null, 2) };
-    case 'provider-full': return { title: name, filename: `${name.replace(/[^a-zA-Z0-9\u4e00-\u9fff_-]/g,'_')}.json`, content: JSON.stringify({ name, base_url: base, api_key: apiKey, models: cfg.models || [], created_at: cfg.ts || new Date().toISOString() }, null, 2) };
+    case 'provider-full': return { title: name, filename: `${name.replace(/[^a-zA-Z0-9\u4e00-\u9fff_-]/g,'_')}.json`, content: JSON.stringify({ name, base_url: base, api_key: apiKey, model, models: cfg.models || [], created_at: cfg.ts || new Date().toISOString() }, null, 2) };
     default: return { title: '', filename: '', content: '' };
   }
 }
@@ -1243,6 +1352,39 @@ function downloadExport() {
 let probeData = [];
 let probeAbort = false;
 
+async function syncProbeMatchesAfterProviderChange() {
+  const model = document.getElementById('probe-select').value;
+  const btn = document.getElementById('btn-probe-all');
+
+  if (!model) {
+    btn.disabled = true;
+    const container = document.getElementById('probe-results').innerHTML = '';
+    probeData = [];
+    return;
+  }
+
+  const providers = await getProviders();
+  const previousStatus = new Map(probeData.map(item => [item.providerId, { status: item.status, latency: item.latency }]));
+  
+  probeData = providers
+    .filter(p => (p.models || []).includes(model))
+    .map(p => {
+      const previous = previousStatus.get(p.id);
+      return {
+        providerId: p.id,
+        providerName: p.name,
+        baseUrl: p.baseUrl,
+        apiKey: p._key,
+        model: model,
+        status: previous ? previous.status : 'wait',
+        latency: previous ? previous.latency : null
+      };
+    });
+
+  btn.disabled = probeData.length === 0;
+  renderProbeResults();
+}
+
 // Populate the dropdown with all unique models from all providers
 async function refreshProbeDropdown() {
   const providers = await getProviders();
@@ -1265,33 +1407,7 @@ async function refreshProbeDropdown() {
 
 // When user selects a model from dropdown
 async function onProbeSelect() {
-  const model = document.getElementById('probe-select').value;
-  const btn = document.getElementById('btn-probe-all');
-  if (!model) {
-    btn.disabled = true;
-    document.getElementById('probe-results').innerHTML = '';
-    probeData = [];
-    return;
-  }
-
-  const providers = await getProviders();
-  probeData = [];
-  for (const p of providers) {
-    if ((p.models || []).includes(model)) {
-      probeData.push({
-        providerId: p.id,
-        providerName: p.name,
-        baseUrl: p.baseUrl,
-        apiKey: p._key,
-        model,
-        status: 'wait',
-        latency: null
-      });
-    }
-  }
-
-  btn.disabled = probeData.length === 0;
-  renderProbeResults();
+  await syncProbeMatchesAfterProviderChange();
 }
 
 function renderProbeResults() {
