@@ -1045,9 +1045,11 @@ async function parseAndAutoSave(text, fname) {
   let cfg = {};
   if (fname.endsWith('.json')) {
     const j = JSON.parse(text);
+    cfg.name = j.name;
     cfg.baseUrl = j.base_url || j.baseUrl || j.OPENAI_BASE_URL || j.api_base || '';
     cfg.apiKey = j.api_key || j.apiKey || j.OPENAI_API_KEY || '';
-    cfg.model = j.model || j.MODEL || j.default_model || '';
+    cfg.model = j.model || '';
+    cfg.models = Array.isArray(j.models) ? j.models : [];
   } else if (fname.endsWith('.env')) {
     text.split('\n').forEach(line => {
       const m = line.match(/^([^#=]+)=(.*)$/);
@@ -1082,16 +1084,24 @@ async function parseAndAutoSave(text, fname) {
   // Fill form
   document.getElementById('base-url').value = cfg.baseUrl;
   document.getElementById('api-key').value = cfg.apiKey;
-  if (cfg.model) document.getElementById('model-name').value = cfg.model;
+  const modelNameEl = document.getElementById('model-name');
+  // Auto-save: build model list from imported fields first
+  let modelList = [];
+  if (cfg.models) {
+    modelList = cfg.models.filter(m => typeof m === 'string' && m.trim());
+  } else if (cfg.model) {
+    modelList = [cfg.model];
+  } else {
+    showToast(t('toast_fetching_models'));
+    modelList = await fetchModelsRaw(cfg.baseUrl, cfg.apiKey);
+  }
 
-  // Auto-save: fetch models then save
-  showToast(t('toast_fetching_models'));
-  const models = await fetchModelsRaw(cfg.baseUrl, cfg.apiKey);
-  const modelList = models.length > 0 ? models : (cfg.model ? [cfg.model] : []);
+  modelNameEl.value = (cfg.model && modelList.includes(cfg.model)) ? cfg.model : modelList ? modelList[0] : '';
 
   const encKey = await encryptText(cfg.apiKey);
   const raw = getRawProviders();
-  const name = extractHost(cfg.baseUrl);
+  const importedName = (cfg.name || '').trim();
+  const name = importedName || extractHost(cfg.baseUrl);
   raw.push({
     id: Date.now(),
     name,
@@ -1125,7 +1135,7 @@ function generateFormatContent(format, cfg) {
     case 'curl': return { title: 'cURL', filename: 'test_api.sh', content: `curl "${base}/chat/completions" \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: Bearer ${apiKey}" \\\n  -d '{\n    "model": "${model}",\n    "messages": [{"role":"user","content":"${prompt.replace(/"/g, '\\"')}"}],\n    "max_tokens": 256\n  }'` };
     case 'python': return { title: 'Python', filename: 'test_api.py', content: `from openai import OpenAI\n\nclient = OpenAI(\n    api_key="${apiKey}",\n    base_url="${base}"\n)\n\nres = client.chat.completions.create(\n    model="${model}",\n    messages=[{"role":"user","content":"${prompt.replace(/"/g, '\\"')}"}],\n    max_tokens=256\n)\nprint(res.choices[0].message.content)` };
     case 'json': return { title: 'JSON', filename: `${name.replace(/[^a-zA-Z0-9\u4e00-\u9fff_-]/g,'_')}_config.json`, content: JSON.stringify({ name, base_url: base, api_key: apiKey, model, models: cfg.models || [model], created_at: new Date().toISOString() }, null, 2) };
-    case 'provider-full': return { title: name, filename: `${name.replace(/[^a-zA-Z0-9\u4e00-\u9fff_-]/g,'_')}.json`, content: JSON.stringify({ name, base_url: base, api_key: apiKey, models: cfg.models || [], created_at: cfg.ts || new Date().toISOString() }, null, 2) };
+    case 'provider-full': return { title: name, filename: `${name.replace(/[^a-zA-Z0-9\u4e00-\u9fff_-]/g,'_')}.json`, content: JSON.stringify({ name, base_url: base, api_key: apiKey, model, models: cfg.models || [], created_at: cfg.ts || new Date().toISOString() }, null, 2) };
     default: return { title: '', filename: '', content: '' };
   }
 }
