@@ -612,6 +612,9 @@ async function renderProviders() {
             </div>
           </div>
           <div class="provider-actions" onclick="event.stopPropagation()">
+            <button class="btn-icon btn-icon-sm" onclick="testProviderAllModels(${p.id})" title="${t('btn_testall')}">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8h12"/><path d="M9 3l5 5-5 5"/></svg>
+            </button>
             <button class="btn-icon btn-icon-sm" onclick="refreshProviderModels(${p.id})" title="${t('provider_refresh')}">
               <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 8a6 6 0 0111.5-2.3"/><path d="M14 8a6 6 0 01-11.5 2.3"/><path d="M13 2v4h-4"/><path d="M3 14v-4h4"/></svg>
             </button>
@@ -948,13 +951,39 @@ async function testAllProviders() {
   const providers = await getProviders();
   if (!providers.length) { showToast(t('testall_empty')); return; }
 
+  await runProviderModelTests(providers.map(p => ({
+    id: p.id,
+    name: p.name,
+    baseUrl: p.baseUrl,
+    apiKey: p._key,
+    models: (p.models || []).slice()
+  })));
+}
+
+async function testProviderAllModels(id) {
+  const providers = await getProviders();
+  const p = providers.find(x => x.id === id);
+  if (!p) return;
+
+  await runProviderModelTests([{
+    id: p.id,
+    name: p.name,
+    baseUrl: p.baseUrl,
+    apiKey: p._key,
+    models: (p.models || []).slice()
+  }]);
+}
+
+async function runProviderModelTests(providerList) {
+  if (!providerList.length) { showToast(t('testall_empty')); return; }
+
   testAllAbort = false;
   document.getElementById('testall-modal').classList.remove('hidden');
   const container = document.getElementById('testall-results');
   const summaryEl = document.getElementById('testall-summary');
   let totalOk = 0, totalFail = 0, totalSkip = 0;
 
-  const pData = providers.map(p => ({
+  const pData = providerList.map(p => ({
     id: p.id, name: p.name, baseUrl: p.baseUrl, apiKey: p._key,
     models: (p.models || []).slice(), // ALL models, no limit
     status: 'run', results: []
