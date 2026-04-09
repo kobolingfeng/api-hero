@@ -1032,13 +1032,53 @@ function importConfigs() { document.getElementById('import-file').click(); }
 function handleImportFile(e) {
   const file = e.target.files[0];
   if (!file) return;
+  e.target.value = '';
+
+  if (file.name.toLowerCase().endsWith('.zip')) {
+    importZipFile(file).catch(() => showToast(t('toast_import_fail')));
+    return;
+  }
+
   const reader = new FileReader();
   reader.onload = ev => {
     try { parseAndAutoSave(ev.target.result, file.name); }
     catch { showToast(t('toast_import_fail')); }
   };
   reader.readAsText(file);
-  e.target.value = '';
+}
+
+async function importZipFile(file) {
+  if (typeof JSZip === 'undefined') {
+    showToast(currentLang === 'zh' ? 'JSZip 未加载，请刷新页面' : 'JSZip not loaded');
+    return;
+  }
+
+  const zip = await JSZip.loadAsync(file);
+  const entries = Object.values(zip.files).filter(entry => !entry.dir && entry.name.toLowerCase().endsWith('.json'));
+  if (entries.length === 0) {
+    showToast(t('toast_import_fail'));
+    return;
+  }
+
+  let importedCount = 0;
+  for (const entry of entries) {
+    const text = await entry.async('string');
+    try {
+      await parseAndAutoSave(text, entry.name);
+      importedCount++;
+    } catch {
+      // Skip invalid entry and continue importing remaining JSON files
+    }
+  }
+
+  if (importedCount === 0) {
+    showToast(t('toast_import_fail'));
+    return;
+  }
+
+  showToast(currentLang === 'zh'
+    ? `✓ 已导入 ZIP（${importedCount} 个配置）`
+    : `✓ ZIP imported (${importedCount} configs)`);
 }
 
 async function parseAndAutoSave(text, fname) {
