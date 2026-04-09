@@ -230,14 +230,17 @@
           <div class="card-dot"></div>
           <h2 class="card-title" data-i18n="saved_title">已保存</h2>
           <div class="card-header-actions">
-            <button class="btn-icon" onclick="testAllProviders()" title="Test All" id="btn-test-all">
+            <button class="btn-icon" onclick="testAllProviders()" title="测试全部" data-i18n-title="btn_testall" id="btn-test-all">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 7h12M9 3l4 4-4 4"/></svg>
             </button>
-            <button class="btn-icon" onclick="exportAllProviders()" title="Export All" id="btn-export-all">
+            <button class="btn-icon" onclick="exportAllProviders()" title="导出全部" data-i18n-title="btn_export_all" id="btn-export-all">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2h10M2 6h10M2 10h10"/><path d="M12 5l-2 2 2 2"/></svg>
             </button>
-            <button class="btn-icon" onclick="importConfigs()" title="Import">
+            <button class="btn-icon" onclick="importConfigs()" title="导入" data-i18n-title="btn_import" id="btn-import-all">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 1v9M3 6l4 4 4-4"/><path d="M1 11v1a1 1 0 001 1h10a1 1 0 001-1v-1"/></svg>
+            </button>
+            <button class="btn-icon" onclick="deleteAllProviders()" title="删除全部" data-i18n-title="btn_delete_all" id="btn-delete-all">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 4h10"/><path d="M5 4V2.5h4V4"/><path d="M4 4v7.5A1.5 1.5 0 005.5 13h3A1.5 1.5 0 0010 11.5V4"/><path d="M6 6.5v4M8 6.5v4"/></svg>
             </button>
           </div>
           <input type="file" id="import-file" accept=".json,.toml,.env,.yaml,.yml,.zip" class="sr-only">

@@ -45,6 +45,10 @@ const i18n = {
     btn_test: '测试连接',
     btn_ping: '连通检测',
     btn_save: '保存服务商',
+    btn_testall: '测试全部',
+    btn_export_all: '导出全部',
+    btn_import: '导入',
+    btn_delete_all: '删除全部',
     btn_copy: '复制',
     btn_download: '下载',
     saved_title: '服务商',
@@ -68,6 +72,7 @@ const i18n = {
     onboarding_next: '下一步',
     toast_saved: '✓ 已保存（密钥已加密）',
     toast_deleted: '✓ 已删除',
+    toast_deleted_all: '✓ 已清空全部服务商',
     toast_loaded: '✓ 已加载',
     toast_copied: '✓ 已复制',
     toast_imported: '✓ 导入并保存成功',
@@ -81,6 +86,7 @@ const i18n = {
     prompt_name: '为该服务商命名：',
     prompt_rename: '输入新名称：',
     confirm_delete: '确认删除该服务商及其所有配置？',
+    confirm_delete_all: '确认删除全部已保存服务商？',
     status_ok: '正常',
     status_fail: '失败',
     ping_dns: 'DNS 解析',
@@ -151,6 +157,10 @@ const i18n = {
     btn_test: 'Test',
     btn_ping: 'Ping',
     btn_save: 'Save Provider',
+    btn_testall: 'Test All',
+    btn_export_all: 'Export All',
+    btn_import: 'Import',
+    btn_delete_all: 'Delete All',
     btn_copy: 'Copy',
     btn_download: 'Download',
     saved_title: 'PROVIDERS',
@@ -174,6 +184,7 @@ const i18n = {
     onboarding_next: 'Next',
     toast_saved: '✓ Saved (key encrypted)',
     toast_deleted: '✓ Deleted',
+    toast_deleted_all: '✓ All providers cleared',
     toast_loaded: '✓ Loaded',
     toast_copied: '✓ Copied',
     toast_imported: '✓ Imported & saved',
@@ -187,6 +198,7 @@ const i18n = {
     prompt_name: 'Name this provider:',
     prompt_rename: 'Enter new name:',
     confirm_delete: 'Delete this provider and all its config?',
+    confirm_delete_all: 'Delete all saved providers?',
     status_ok: 'OK',
     status_fail: 'FAIL',
     ping_dns: 'DNS Resolution',
@@ -235,6 +247,10 @@ function applyLang() {
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     if (i18n[currentLang][key]) el.textContent = i18n[currentLang][key];
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    const key = el.getAttribute('data-i18n-title');
+    if (i18n[currentLang][key]) el.title = i18n[currentLang][key];
   });
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
     const key = el.getAttribute('data-i18n-placeholder');
@@ -664,6 +680,17 @@ async function deleteProvider(id) {
     setProviders(raw);
     renderProviders();
     showToast(t('toast_deleted'));
+  });
+}
+
+function deleteAllProviders() {
+  const raw = getRawProviders();
+  if (!raw.length) return;
+  showConfirmModal(t('confirm_delete_all'), () => {
+    expandedProviders.clear();
+    setProviders([]);
+    renderProviders();
+    showToast(t('toast_deleted_all'));
   });
 }
 
