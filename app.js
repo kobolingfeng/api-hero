@@ -679,6 +679,7 @@ async function deleteProvider(id) {
     expandedProviders.delete(id);
     setProviders(raw);
     renderProviders();
+    syncProbeMatchesAfterProviderChange();
     showToast(t('toast_deleted'));
   });
 }
@@ -690,6 +691,7 @@ function deleteAllProviders() {
     expandedProviders.clear();
     setProviders([]);
     renderProviders();
+    syncProbeMatchesAfterProviderChange();
     showToast(t('toast_deleted_all'));
   });
 }
@@ -1179,6 +1181,7 @@ async function parseAndAutoSave(text, fname) {
   });
   setProviders(raw);
   renderProviders();
+  await syncProbeMatchesAfterProviderChange();
   showToast(t('toast_imported') + ` — ${name} (${modelList.length} ${currentLang === 'zh' ? '个模型' : 'models'})`);
 }
 
@@ -1320,6 +1323,39 @@ function downloadExport() {
 let probeData = [];
 let probeAbort = false;
 
+async function syncProbeMatchesAfterProviderChange() {
+  const model = document.getElementById('probe-select').value;
+  const btn = document.getElementById('btn-probe-all');
+
+  if (!model) {
+    btn.disabled = true;
+    const container = document.getElementById('probe-results').innerHTML = '';
+    probeData = [];
+    return;
+  }
+
+  const providers = await getProviders();
+  const previousStatus = new Map(probeData.map(item => [item.providerId, { status: item.status, latency: item.latency }]));
+  
+  probeData = providers
+    .filter(p => (p.models || []).includes(model))
+    .map(p => {
+      const previous = previousStatus.get(p.id);
+      return {
+        providerId: p.id,
+        providerName: p.name,
+        baseUrl: p.baseUrl,
+        apiKey: p._key,
+        model: model,
+        status: previous ? previous.status : 'wait',
+        latency: previous ? previous.latency : null
+      };
+    });
+
+  btn.disabled = probeData.length === 0;
+  renderProbeResults();
+}
+
 // Populate the dropdown with all unique models from all providers
 async function refreshProbeDropdown() {
   const providers = await getProviders();
@@ -1342,33 +1378,7 @@ async function refreshProbeDropdown() {
 
 // When user selects a model from dropdown
 async function onProbeSelect() {
-  const model = document.getElementById('probe-select').value;
-  const btn = document.getElementById('btn-probe-all');
-  if (!model) {
-    btn.disabled = true;
-    document.getElementById('probe-results').innerHTML = '';
-    probeData = [];
-    return;
-  }
-
-  const providers = await getProviders();
-  probeData = [];
-  for (const p of providers) {
-    if ((p.models || []).includes(model)) {
-      probeData.push({
-        providerId: p.id,
-        providerName: p.name,
-        baseUrl: p.baseUrl,
-        apiKey: p._key,
-        model,
-        status: 'wait',
-        latency: null
-      });
-    }
-  }
-
-  btn.disabled = probeData.length === 0;
-  renderProbeResults();
+  await syncProbeMatchesAfterProviderChange();
 }
 
 function renderProbeResults() {
